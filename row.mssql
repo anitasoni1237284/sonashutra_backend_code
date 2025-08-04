@@ -1,0 +1,179 @@
+-- 1. Users Table
+CREATE TABLE sn_tr_users (
+    user_id INT PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    password_hash VARCHAR(255),
+    phone_number VARCHAR(15),
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+-- 2. Addresses Table
+CREATE TABLE sn_tr_addresses (
+    address_id INT PRIMARY KEY IDENTITY(1,1),
+    user_id INT,
+    type VARCHAR(50) CHECK (type IN ('Shipping', 'Billing')),
+    line1 VARCHAR(255),
+    line2 VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    postal_code VARCHAR(20),
+    country VARCHAR(100),
+    FOREIGN KEY (user_id) REFERENCES sn_tr_users(user_id)
+);
+
+-- 3. Categories
+CREATE TABLE sn_tr_categories (
+    category_id INT PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(100),
+    parent_category_id INT,
+    FOREIGN KEY (parent_category_id) REFERENCES sn_tr_categories(category_id)
+);
+
+-- 4. Brands
+CREATE TABLE sn_tr_brands (
+    brand_id INT PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(100)
+);
+
+-- 5. Products
+CREATE TABLE sn_tr_products (
+    product_id INT PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(100),
+    description VARCHAR(MAX),
+    price DECIMAL(18,2),
+    stock_quantity INT,
+    category_id INT,
+    brand_id INT,
+    image_url VARCHAR(255),
+    status VARCHAR(20) CHECK (status IN ('Active', 'Inactive')),
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (category_id) REFERENCES sn_tr_categories(category_id),
+    FOREIGN KEY (brand_id) REFERENCES sn_tr_brands(brand_id)
+);
+
+-- 6. Cart
+CREATE TABLE sn_tr_cart (
+    cart_id INT PRIMARY KEY IDENTITY(1,1),
+    user_id INT,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES sn_tr_users(user_id)
+);
+
+-- 7. Cart Items
+CREATE TABLE sn_tr_cart_items (
+    cart_item_id INT PRIMARY KEY IDENTITY(1,1),
+    cart_id INT,
+    product_id INT,
+    quantity INT,
+    FOREIGN KEY (cart_id) REFERENCES sn_tr_cart(cart_id),
+    FOREIGN KEY (product_id) REFERENCES sn_tr_products(product_id)
+);
+
+-- 8. Orders
+CREATE TABLE sn_tr_orders (
+    order_id INT PRIMARY KEY IDENTITY(1,1),
+    user_id INT,
+    order_status VARCHAR(50) CHECK (order_status IN ('Pending', 'Shipped', 'Delivered', 'Cancelled')),
+    payment_status VARCHAR(50) CHECK (payment_status IN ('Pending', 'Paid', 'Failed')),
+    shipping_address_id INT,
+    billing_address_id INT,
+    total_amount DECIMAL(18,2),
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES sn_tr_users(user_id),
+    FOREIGN KEY (shipping_address_id) REFERENCES sn_tr_addresses(address_id),
+    FOREIGN KEY (billing_address_id) REFERENCES sn_tr_addresses(address_id)
+);
+
+-- 9. Order Items
+CREATE TABLE sn_tr_order_items (
+    order_item_id INT PRIMARY KEY IDENTITY(1,1),
+    order_id INT,
+    product_id INT,
+    quantity INT,
+    unit_price DECIMAL(18,2),
+    FOREIGN KEY (order_id) REFERENCES sn_tr_orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES sn_tr_products(product_id)
+);
+
+-- 10. Payments
+CREATE TABLE sn_tr_payments (
+    payment_id INT PRIMARY KEY IDENTITY(1,1),
+    order_id INT,
+    payment_method VARCHAR(50),
+    transaction_id VARCHAR(100),
+    amount DECIMAL(18,2),
+    payment_status VARCHAR(50) CHECK (payment_status IN ('Pending', 'Paid', 'Failed')),
+    paid_at DATETIME,
+    FOREIGN KEY (order_id) REFERENCES sn_tr_orders(order_id)
+);
+
+-- 11. Reviews
+CREATE TABLE sn_tr_reviews (
+    review_id INT PRIMARY KEY IDENTITY(1,1),
+    user_id INT,
+    product_id INT,
+    rating INT CHECK (rating BETWEEN 1 AND 5),
+    comment VARCHAR(MAX),
+    created_at DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (user_id) REFERENCES sn_tr_users(user_id),
+    FOREIGN KEY (product_id) REFERENCES sn_tr_products(product_id)
+);
+
+-- 12. Admin Users
+CREATE TABLE sn_mr_admin_users (
+    admin_id INT PRIMARY KEY IDENTITY(1,1),
+    name VARCHAR(100),
+    email VARCHAR(100) UNIQUE,
+    password_hash VARCHAR(255),
+    role VARCHAR(50) CHECK (role IN ('SuperAdmin', 'Manager', 'Support')),
+    created_at DATETIME DEFAULT GETDATE()
+);
+
+-- 13. Product Activity Logs
+CREATE TABLE sn_mr_product_activity_logs (
+    log_id INT PRIMARY KEY IDENTITY(1,1),
+    admin_id INT,
+    product_id INT,
+    action VARCHAR(50) CHECK (action IN ('Add', 'Update', 'Delete')),
+    timestamp DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (admin_id) REFERENCES sn_mr_admin_users(admin_id),
+    FOREIGN KEY (product_id) REFERENCES sn_tr_products(product_id)
+);
+
+-- 14. Order Activity Logs
+CREATE TABLE sn_mr_order_activity_logs (
+    log_id INT PRIMARY KEY IDENTITY(1,1),
+    admin_id INT,
+    order_id INT,
+    action VARCHAR(100),
+    note VARCHAR(MAX),
+    timestamp DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (admin_id) REFERENCES sn_mr_admin_users(admin_id),
+    FOREIGN KEY (order_id) REFERENCES sn_tr_orders(order_id)
+);
+
+-- 15. Inventory Logs
+CREATE TABLE sn_mr_inventory_logs (
+    log_id INT PRIMARY KEY IDENTITY(1,1),
+    product_id INT,
+    admin_id INT,
+    change INT,
+    reason VARCHAR(255),
+    timestamp DATETIME DEFAULT GETDATE(),
+    FOREIGN KEY (product_id) REFERENCES sn_tr_products(product_id),
+    FOREIGN KEY (admin_id) REFERENCES sn_mr_admin_users(admin_id)
+);
+
+-- 16. Coupons
+CREATE TABLE sn_tr_coupons (
+    coupon_id INT PRIMARY KEY IDENTITY(1,1),
+    code VARCHAR(50) UNIQUE,
+    discount_type VARCHAR(50) CHECK (discount_type IN ('Flat', 'Percentage')),
+    value DECIMAL(10,2),
+    max_uses INT,
+    valid_from DATE,
+    valid_to DATE,
+    is_active BIT
+);

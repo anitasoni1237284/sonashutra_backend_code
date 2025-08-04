@@ -1,0 +1,16 @@
+{
+  "development": {
+    "username": "sonasutra",
+    "password": "jaihanuman12345@",
+    "database": "sonasutra",
+    "host": "160.187.80.176",
+    "port": 15345,
+    "dialect": "mssql",
+    "dialectOptions": {
+      "options": {
+        "encrypt": false,
+        "trustServerCertificate": true
+      }
+    }
+  }
+}
