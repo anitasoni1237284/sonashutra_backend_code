@@ -31,13 +31,8 @@ app.get("/", async (req, res) => {
 
 // console.log(
 //   enCryptData({
-//     type: "1",
-//     line1: "Anand Kumar Verma",
-//     line2: "Sudheer@123",
-//     city: "Lucknow",
-//     state: "Uttar Pradesh",
-//     postal_code: "225305",
-//     country: "India",
+//     username: "anand",
+//     password: "123",
 //   })
 // );
 // const bcrypt = require("bcrypt");

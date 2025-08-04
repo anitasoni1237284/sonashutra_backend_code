@@ -19,7 +19,7 @@ exports.createStore = async (req, res, next) => {
 
     if (!name) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Name is required."));
     }
 
@@ -44,7 +44,7 @@ exports.createStore = async (req, res, next) => {
     ]);
 
     return res
-      .status(201)
+      .status(200)
       .json(returnResponse(true, false, "Store created successfully."));
   } catch (err) {
     next(err);
@@ -84,7 +84,7 @@ exports.updateStore = async (req, res, next) => {
 
     if (!store_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "store_id is required."));
     }
 
@@ -124,7 +124,7 @@ exports.deleteStore = async (req, res, next) => {
     const { store_id } = req.body;
     if (!store_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "store_id is required."));
     }
 
@@ -176,7 +176,7 @@ exports.getRoleById = async (req, res, next) => {
     const result = await queryDb(query, [roleId]);
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Role not found.", null));
     }
     return res
@@ -238,7 +238,7 @@ exports.createUser = async (req, res, next) => {
 
     if (!store_id || !roleId || !username || !password || !email) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -299,7 +299,7 @@ exports.getUserById = async (req, res, next) => {
     const { userId } = req.query;
     if (!userId) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "userId is required."));
     }
     const query = `
@@ -313,7 +313,7 @@ exports.getUserById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "User not found.", null));
     }
 
@@ -340,7 +340,7 @@ exports.updateUser = async (req, res, next) => {
     } = req.body;
     if (!userId || !store_id || !roleId) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "userId,store_id,roleId is required.")
         );
@@ -376,7 +376,7 @@ exports.deleteUser = async (req, res, next) => {
     const { userId } = req.query;
     if (!userId) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "userId is required."));
     }
     const query = "DELETE FROM sn_user WHERE userId = ?;";
@@ -396,7 +396,7 @@ exports.assignPermissionToRole = async (req, res, next) => {
     const { roleId, permissionId } = req.query;
     if (!roleId || !permissionId) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "roleId and permissionId is required.")
         );
@@ -406,7 +406,7 @@ exports.assignPermissionToRole = async (req, res, next) => {
       [roleId, permissionId]
     );
     return res
-      .status(201)
+      .status(200)
       .json(
         returnResponse(true, false, "Permission assigned to role.", result)
       );
@@ -420,7 +420,7 @@ exports.getRolePermissions = async (req, res, next) => {
     const { roleId } = req.query;
     if (!roleId) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "roleId is required."));
     }
     const result = await queryDb(
@@ -444,7 +444,7 @@ exports.removePermissionFromRole = async (req, res, next) => {
     const { roleId, permissionId } = req.query;
     if (!roleId || !permissionId) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "roleId and permissionId is required.")
         );
@@ -485,7 +485,7 @@ exports.createProductCategory = async (req, res, next) => {
 
     if (!name || !description) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -526,7 +526,7 @@ exports.getProductCategoryById = async (req, res, next) => {
     const { product_category_id } = req.query;
     if (!product_category_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "product_category_id is required."));
     }
     const query =
@@ -535,7 +535,7 @@ exports.getProductCategoryById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Category not found."));
     }
 
@@ -568,7 +568,7 @@ exports.updateProductCategory = async (req, res, next) => {
     const { product_category_id, name, description } = req.body;
     if (!product_category_id || !name) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -614,7 +614,7 @@ exports.deleteProductCategory = async (req, res, next) => {
     const { product_category_id } = req.body;
     if (!product_category_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "product_category_id is required."));
     }
     const query =
@@ -635,7 +635,7 @@ exports.createProduct = async (req, res, next) => {
 
     if (!name || !price) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Name and Price are required."));
     }
 
@@ -657,7 +657,7 @@ exports.createProduct = async (req, res, next) => {
     ]);
 
     return res
-      .status(201)
+      .status(200)
       .json(returnResponse(true, false, "Product created successfully."));
   } catch (e) {
     next(e);
@@ -691,7 +691,7 @@ exports.getProductById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Product not found."));
     }
 
@@ -753,7 +753,7 @@ exports.createInventory = async (req, res, next) => {
 
     if (!product_id || quantity == null) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Product ID and Quantity are required.")
         );
@@ -769,7 +769,7 @@ exports.createInventory = async (req, res, next) => {
     await queryDb(query, [product_id, quantity, last_updated]);
 
     return res
-      .status(201)
+      .status(200)
       .json(
         returnResponse(true, false, "Inventory entry created successfully.")
       );
@@ -808,7 +808,7 @@ exports.getInventoryByProductId = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(
           returnResponse(false, true, "Inventory not found for this product.")
         );
@@ -829,7 +829,7 @@ exports.updateInventory = async (req, res, next) => {
 
     if (!inventory_id || quantity == null) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Inventory ID and Quantity are required.")
         );
@@ -874,7 +874,7 @@ exports.createCustomer = async (req, res, next) => {
 
     if (!name) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Customer name is required."));
     }
 
@@ -888,7 +888,7 @@ exports.createCustomer = async (req, res, next) => {
     await queryDb(query, [name, email, phone, created_at, updated_at]);
 
     return res
-      .status(201)
+      .status(200)
       .json(returnResponse(true, false, "Customer created successfully."));
   } catch (e) {
     next(e);
@@ -919,7 +919,7 @@ exports.getCustomerById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Customer not found."));
     }
 
@@ -938,7 +938,7 @@ exports.updateCustomer = async (req, res, next) => {
 
     if (!customer_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Customer ID is required."));
     }
 
@@ -981,7 +981,7 @@ exports.createCustomerOrder = async (req, res, next) => {
 
     if (!customer_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Customer ID is required."));
     }
 
@@ -994,7 +994,7 @@ exports.createCustomerOrder = async (req, res, next) => {
     await queryDb(query, [customer_id, order_date, status, total_amount]);
 
     return res
-      .status(201)
+      .status(200)
       .json(returnResponse(true, false, "Order created successfully."));
   } catch (e) {
     next(e);
@@ -1034,7 +1034,7 @@ exports.getCustomerOrderById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Order not found."));
     }
 
@@ -1053,7 +1053,7 @@ exports.updateCustomerOrder = async (req, res, next) => {
 
     if (!order_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Order ID is required."));
     }
 
@@ -1094,7 +1094,7 @@ exports.createOrderItem = async (req, res, next) => {
 
     if (!order_id || !product_id || !quantity || !unit_price) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "All fields are required."));
     }
 
@@ -1105,7 +1105,7 @@ exports.createOrderItem = async (req, res, next) => {
     await queryDb(query, [order_id, product_id, quantity, unit_price]);
 
     return res
-      .status(201)
+      .status(200)
       .json(returnResponse(true, false, "Order item created successfully."));
   } catch (e) {
     next(e);
@@ -1147,7 +1147,7 @@ exports.getOrderItemById = async (req, res, next) => {
 
     if (result.length === 0) {
       return res
-        .status(404)
+        .status(201)
         .json(returnResponse(false, true, "Order item not found."));
     }
 
@@ -1166,7 +1166,7 @@ exports.updateOrderItem = async (req, res, next) => {
 
     if (!order_item_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Order Item ID is required."));
     }
 
@@ -2599,7 +2599,7 @@ exports.updateCustomerCoupon = async (req, res, next) => {
     const { id, used_at } = req.body;
     if (!id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "ID is required."));
     }
 
@@ -2626,7 +2626,7 @@ exports.deleteCustomerCoupon = async (req, res, next) => {
     const { id } = req.body;
     if (!id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "ID is required."));
     }
 
@@ -2647,7 +2647,7 @@ exports.createShippingMethod = async (req, res, next) => {
     const { name, description, cost } = req.body;
     if (!name || cost === undefined) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Name and cost are required."));
     }
 
@@ -2693,7 +2693,7 @@ exports.updateShippingMethod = async (req, res, next) => {
     const { shipping_method_id, name, description, cost } = req.body;
     if (!shipping_method_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "shipping_method_id is required."));
     }
 
@@ -2720,7 +2720,7 @@ exports.deleteShippingMethod = async (req, res, next) => {
     const { shipping_method_id } = req.body;
     if (!shipping_method_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "shipping_method_id is required."));
     }
 
@@ -2741,7 +2741,7 @@ exports.createProductAttribute = async (req, res, next) => {
     const { name } = req.body;
     if (!name) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Name is required."));
     }
 
@@ -2787,7 +2787,7 @@ exports.updateProductAttribute = async (req, res, next) => {
     const { attribute_id, name } = req.body;
     if (!attribute_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "attribute_id is required."));
     }
 
@@ -2814,7 +2814,7 @@ exports.deleteProductAttribute = async (req, res, next) => {
     const { attribute_id } = req.body;
     if (!attribute_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "attribute_id is required."));
     }
 
@@ -2835,7 +2835,7 @@ exports.createProductAttributeValue = async (req, res, next) => {
     const { product_id, attribute_id, value } = req.body;
     if (!product_id || !attribute_id) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -2904,7 +2904,7 @@ exports.updateProductAttributeValue = async (req, res, next) => {
     const { value_id, value } = req.body;
     if (!value_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "value_id is required."));
     }
 
@@ -2935,7 +2935,7 @@ exports.deleteProductAttributeValue = async (req, res, next) => {
     const { value_id } = req.body;
     if (!value_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "value_id is required."));
     }
 
@@ -2965,7 +2965,7 @@ exports.createNotificationPreference = async (req, res, next) => {
     } = req.body;
     if (!customer_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "customer_id is required."));
     }
 
@@ -3035,7 +3035,7 @@ exports.updateNotificationPreference = async (req, res, next) => {
     } = req.body;
     if (!preference_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "preference_id is required."));
     }
 
@@ -3071,7 +3071,7 @@ exports.deleteNotificationPreference = async (req, res, next) => {
     const { preference_id } = req.body;
     if (!preference_id) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "preference_id is required."));
     }
 
@@ -3096,7 +3096,7 @@ exports.createSystemSetting = async (req, res, next) => {
     const { setting_key, setting_value, updated_at } = req.body;
     if (!setting_key) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "setting_key is required."));
     }
 
@@ -3156,7 +3156,7 @@ exports.updateSystemSetting = async (req, res, next) => {
     const { setting_key, setting_value, updated_at } = req.body;
     if (!setting_key) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "setting_key is required."));
     }
 
@@ -3187,7 +3187,7 @@ exports.deleteSystemSetting = async (req, res, next) => {
     const { setting_key } = req.body;
     if (!setting_key) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "setting_key is required."));
     }
 
@@ -3286,7 +3286,7 @@ exports.deleteAuditLog = async (req, res, next) => {
 
 //     if (results.length === 0) {
 //       return res
-//         .status(404)
+//         .status(201)
 //         .json(returnResponse(false, true, "Permission not found."));
 //     }
 

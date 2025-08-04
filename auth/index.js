@@ -18,7 +18,7 @@ exports.superAdminLogin = async (req, res, next) => {
 
     if (users.length === 0) {
       return res
-        .status(401)
+        .status(201)
         .json(returnResponse(false, true, "Invalid email or password."));
     }
 
@@ -28,7 +28,7 @@ exports.superAdminLogin = async (req, res, next) => {
     const passwordMatch = await bcrypt.compare(su_pass, user.su_pass);
     if (!passwordMatch) {
       return res
-        .status(401)
+        .status(201)
         .json(returnResponse(false, true, "Invalid email or password."));
     }
 
@@ -56,7 +56,7 @@ exports.superAdminLogin = async (req, res, next) => {
 exports.loginUser = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-
+    console.log(username);
     if (!username || !password) {
       return res
         .status(400)
@@ -71,7 +71,7 @@ exports.loginUser = async (req, res, next) => {
 
     if (results.length === 0) {
       return res
-        .status(401)
+        .status(201)
         .json(returnResponse(false, true, "Invalid username or password."));
     }
 
@@ -81,7 +81,7 @@ exports.loginUser = async (req, res, next) => {
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res
-        .status(401)
+        .status(201)
         .json(returnResponse(false, true, "Invalid username or password."));
     }
 
