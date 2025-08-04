@@ -27,6 +27,7 @@ const {
   getProductCategoryById,
   updateProductCategory,
   deleteProductCategory,
+  createStore,
 } = require("../controllers/index1");
 const router = express.Router();
 // login

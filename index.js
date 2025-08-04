@@ -29,24 +29,24 @@ app.get("/", async (req, res) => {
   });
 });
 
-console.log(
-  enCryptData({
-    type: "1",
-    line1: "Anand Kumar Verma",
-    line2: "Sudheer@123",
-    city: "Lucknow",
-    state: "Uttar Pradesh",
-    postal_code: "225305",
-    country: "India",
-  })
-);
-const bcrypt = require("bcrypt");
+// console.log(
+//   enCryptData({
+//     type: "1",
+//     line1: "Anand Kumar Verma",
+//     line2: "Sudheer@123",
+//     city: "Lucknow",
+//     state: "Uttar Pradesh",
+//     postal_code: "225305",
+//     country: "India",
+//   })
+// );
+// const bcrypt = require("bcrypt");
 
-async function name(params) {
-  const e = await bcrypt.hash("123", 10);
-  console.log(e)
-}
-name()
+// async function name(params) {
+//   const e = await bcrypt.hash("123", 10);
+//   console.log(e)
+// }
+// name()
 app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });
