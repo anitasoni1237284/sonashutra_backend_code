@@ -3258,25 +3258,25 @@ exports.deleteAuditLog = async (req, res, next) => {
 //     next(e);
 //   }
 // };
-// exports.getAllPermissions = async (req, res, next) => {
-//   try {
-//     const query = `SELECT * FROM sn_permission`;
-//     const results = await queryDb(query);
+exports.getAllPermissions = async (req, res, next) => {
+  try {
+    const query = `SELECT * FROM sn_permission`;
+    const results = await queryDb(query);
 
-//     return res
-//       .status(200)
-//       .json(
-//         returnResponse(
-//           true,
-//           false,
-//           "Permissions fetched successfully.",
-//           results
-//         )
-//       );
-//   } catch (e) {
-//     next(e);
-//   }
-// };
+    return res
+      .status(200)
+      .json(
+        returnResponse(
+          true,
+          false,
+          "Permissions fetched successfully.",
+          results
+        )
+      );
+  } catch (e) {
+    next(e);
+  }
+};
 // exports.getPermissionById = async (req, res, next) => {
 //   try {
 //     const { permissionId } = req.params;

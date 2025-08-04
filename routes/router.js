@@ -28,6 +28,7 @@ const {
   updateProductCategory,
   deleteProductCategory,
   createStore,
+  getAllPermissions,
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
 const router = express.Router();
@@ -51,6 +52,7 @@ router.get("/get-user-by-id", generalAuthCheck, getUserById);
 router.post("/update-user-by-id", superUserAuthCheck, encdec, updateUser);
 router.get("/delete-user", superUserAuthCheck, deleteUser);
 // permission related api ======================================================================================
+router.get("/get-type-of-permission", superUserAuthCheck, getAllPermissions);
 router.get(
   "/assign-permission-to-role",
   superUserAuthCheck,

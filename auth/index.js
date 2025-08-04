@@ -56,7 +56,6 @@ exports.superAdminLogin = async (req, res, next) => {
 exports.loginUser = async (req, res, next) => {
   try {
     const { username, password } = req.body;
-    console.log(username);
     if (!username || !password) {
       return res
         .status(400)
