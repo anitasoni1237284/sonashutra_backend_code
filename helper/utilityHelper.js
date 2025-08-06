@@ -21,7 +21,6 @@ module.exports = {
   },
 
   enCryptData: (data) => {
-    console.log(data);
     try {
       if (!data) return null;
       if (!process.env.BODY_SECRET) throw new Error("Missing encryption key");

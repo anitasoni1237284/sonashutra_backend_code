@@ -29,12 +29,6 @@ app.get("/", async (req, res) => {
   });
 });
 
-// console.log(
-//   enCryptData({
-//     username: "anand",
-//     password: "123",
-//   })
-// );
 // const bcrypt = require("bcrypt");
 
 // async function name(params) {
@@ -42,6 +36,14 @@ app.get("/", async (req, res) => {
 //   console.log(e)
 // }
 // name()
+
+
+
+
+// console.log(enCryptData({
+//   username:"anand",
+//   password:"123"
+// }))
 app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });

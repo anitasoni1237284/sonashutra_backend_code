@@ -33,7 +33,7 @@ exports.generalAuthCheck = (req, res, next) => {
 };
 exports.userAuthCheck = (req, res, next) => {
   // Get token from the Authorization header
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization || req.headers.Authorization;
   if (!authHeader) {
     return res
       .status(401)
@@ -48,7 +48,6 @@ exports.userAuthCheck = (req, res, next) => {
   }
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     req.userId = decoded.user_id; // Attach the user ID to the request object
     req.roleId = decoded.role_id;
     req.storeId = decoded.store_id;

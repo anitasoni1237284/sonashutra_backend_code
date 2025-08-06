@@ -1,7 +1,18 @@
+const uploadToCloudinary = require("../config/cloudinay");
+const cl = require("../config/cloudinay");
 const { returnResponse } = require("../helper/helperResponse");
 const { queryDb } = require("../helper/utilityHelper");
 const { checkPermission } = require("../middleware");
-// store related api's
+const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
+
+require("dotenv").config();
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
 exports.createStore = async (req, res, next) => {
   try {
     const {
@@ -465,23 +476,25 @@ exports.removePermissionFromRole = async (req, res, next) => {
 
 // Create Product Category
 exports.createProductCategory = async (req, res, next) => {
-  const hasPermission = await checkPermission(
-    req.userId,
-    "create_product_category"
-  );
-  if (!hasPermission) {
-    return res
-      .status(403)
-      .json(
-        returnResponse(
-          false,
-          true,
-          "You do not have permission to create categories."
-        )
-      );
-  }
   try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "create_product_category"
+    );
+
+    if (!hasPermission) {
+      return res
+        .status(403)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to create categories."
+          )
+        );
+    }
     const { name, description } = req.body;
+    const file = req?.files?.file;
 
     if (!name || !description) {
       return res
@@ -494,15 +507,26 @@ exports.createProductCategory = async (req, res, next) => {
           )
         );
     }
+    const q = "SELECT 1 FROM `sn_product_category` WHERE `name` = ? LIMIT 1;";
+    const result = await queryDb(q, [name]);
+    let imageUrl = null;
+    if (result?.length > 0)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Category name already exists!"));
+    if (file) {
+      imageUrl = await uploadToCloudinary(file.data, "product_categories");
+    }
 
     const query =
-      "INSERT INTO sn_product_category (name, description) VALUES (?, ?)";
-    await queryDb(query, [name, description || null]);
-
+      "INSERT INTO sn_product_category (name, description, cat_image) VALUES (?, ?, ?)";
+    await queryDb(query, [name, description, imageUrl]);
+    console.log(imageUrl);
     return res
       .status(200)
       .json(returnResponse(true, false, "Category created successfully."));
   } catch (e) {
+    console.log(e);
     next(e);
   }
 };
@@ -549,23 +573,26 @@ exports.getProductCategoryById = async (req, res, next) => {
 
 // Update Product Category
 exports.updateProductCategory = async (req, res, next) => {
-  const hasPermission = await checkPermission(
-    req.userId,
-    "update_product_category"
-  );
-  if (!hasPermission) {
-    return res
-      .status(403)
-      .json(
-        returnResponse(
-          false,
-          true,
-          "You do not have permission to this action."
-        )
-      );
-  }
+  // const hasPermission = await checkPermission(
+  //   req.userId,
+  //   "update_product_category"
+  // );
+  // if (!hasPermission) {
+  //   return res
+  //     .status(403)
+  //     .json(
+  //       returnResponse(
+  //         false,
+  //         true,
+  //         "You do not have permission to this action."
+  //       )
+  //     );
+  // }
+
   try {
     const { product_category_id, name, description } = req.body;
+    const file = req?.files?.file;
+
     if (!product_category_id || !name) {
       return res
         .status(201)
@@ -577,13 +604,29 @@ exports.updateProductCategory = async (req, res, next) => {
           )
         );
     }
-    const query =
-      "UPDATE sn_product_category SET name = ?, description = ? WHERE product_category_id = ?";
-    const result = await queryDb(query, [
-      name,
-      description || null,
-      product_category_id,
-    ]);
+
+    let imageUrl = null;
+
+    if (file) {
+      imageUrl = await uploadToCloudinary(file.data, "product_categories");
+    }
+
+    let query;
+    let params;
+
+    if (imageUrl) {
+      query = `UPDATE sn_product_category 
+               SET name = ?, description = ?, cat_image = ? 
+               WHERE product_category_id = ?`;
+      params = [name, description || null, imageUrl, product_category_id];
+    } else {
+      query = `UPDATE sn_product_category 
+               SET name = ?, description = ? 
+               WHERE product_category_id = ?`;
+      params = [name, description || null, product_category_id];
+    }
+
+    await queryDb(query, params);
 
     return res
       .status(200)
@@ -592,7 +635,6 @@ exports.updateProductCategory = async (req, res, next) => {
     next(e);
   }
 };
-
 // Delete Product Category
 exports.deleteProductCategory = async (req, res, next) => {
   const hasPermission = await checkPermission(
@@ -630,9 +672,11 @@ exports.deleteProductCategory = async (req, res, next) => {
 };
 // Create Product
 exports.createProduct = async (req, res, next) => {
+  const store = req.storeId;
+  console.log(store);
   try {
     const { name, description, price, product_category_id } = req.body;
-
+    const files = req?.files?.file; // can be single or multiple
     if (!name || !price) {
       return res
         .status(201)
@@ -641,20 +685,44 @@ exports.createProduct = async (req, res, next) => {
 
     const created_at = new Date();
     const updated_at = new Date();
+    const q = "SELECT 1 FROM `sn_product` WHERE `name` = ? LIMIT 1;";
+    const results = await queryDb(q, [name]);
+    if (results?.length > 0)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Product name already exists!"));
 
-    const query = `
+    // Step 1: Insert product
+    const insertQuery = `
       INSERT INTO sn_product 
-      (name, description, price, product_category_id, created_at, updated_at) 
-      VALUES (?, ?, ?, ?, ?, ?)`;
-
-    await queryDb(query, [
+      (name, description, price, product_category_id, created_at, updated_at, store_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    const result = await queryDb(insertQuery, [
       name,
       description || null,
       price,
       product_category_id || null,
       created_at,
       updated_at,
+      store,
     ]);
+
+    const productId = result;
+
+    // Step 2: Upload image(s) and insert into sn_product_image
+    if (files) {
+      const imageFiles = Array.isArray(files) ? files : [files];
+
+      for (const file of imageFiles) {
+        const imageUrl = await uploadToCloudinary(file.data, "product_images");
+        const imageQuery = `
+          INSERT INTO sn_product_image (p_product_id, p_image_url, p_created_at)
+          VALUES (?, ?, ?)
+        `;
+        await queryDb(imageQuery, [productId, imageUrl, new Date()]);
+      }
+    }
 
     return res
       .status(200)
@@ -665,28 +733,88 @@ exports.createProduct = async (req, res, next) => {
 };
 
 // Get All Products
+
 exports.getAllProducts = async (req, res, next) => {
   try {
-    const query = `
-      SELECT p.*, c.name AS category_name 
-      FROM sn_product p 
-      LEFT JOIN sn_product_category c 
-      ON p.product_category_id = c.product_category_id`;
+    const {
+      category_id = null,
+      search = "",
+      start_date = "",
+      end_date = "",
+      page = 1,
+      count = 10,
+    } = req.query;
+    const pageNumber = Math.max(Number(page), 1);
+    const pageSize = Math.max(Number(count), 1);
+    const offset = (pageNumber - 1) * pageSize;
 
-    const result = await queryDb(query);
-    return res
-      .status(200)
-      .json(returnResponse(true, false, "Products fetched.", result));
+    let countQuery = `SELECT COUNT(*) AS cnt FROM sn_product_details WHERE 1 `;
+    let baseQuery = `
+      SELECT * FROM sn_product_details WHERE 1 `;
+
+    let reP = [];
+    let reB = [];
+
+    if (category_id) {
+      countQuery += " AND product_category_id = ?";
+      baseQuery += " AND product_category_id = ?";
+      reP.push(Number(category_id));
+      reB.push(Number(category_id));
+    }
+
+    // Date filter
+    if (start_date && end_date) {
+      const start = moment(start_date).format("YYYY-MM-DD");
+      const end = moment(end_date).format("YYYY-MM-DD");
+      countQuery += " AND DATE(created_at) BETWEEN ? AND ?";
+      baseQuery += " AND DATE(created_at) BETWEEN ? AND ?";
+      reP.push(start, end);
+      reB.push(start, end);
+    }
+
+    // Search filter
+    if (search) {
+      const s = `%${search}%`;
+      const searchCondition = `
+        AND (
+          name LIKE ? OR 
+          description LIKE ? OR 
+          price LIKE ?
+        )`;
+      countQuery += searchCondition;
+      baseQuery += searchCondition;
+      reP.push(s, s, s);
+      reB.push(s, s, s);
+    }
+
+    baseQuery += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    reB.push(pageSize, offset);
+
+    const totalRowsResult = await queryDb(countQuery, reP);
+    const totalRows = Number(totalRowsResult?.[0]?.cnt) || 0;
+    const result = await queryDb(baseQuery, reB);
+
+    return res.status(200).json(
+      returnResponse(
+        false,
+        true,
+        {
+          data: result,
+          totalPage: Math.ceil(totalRows / pageSize),
+          currPage: pageNumber,
+        },
+        "Products fetched."
+      )
+    );
   } catch (e) {
     next(e);
   }
 };
-
 // Get Product by ID
 exports.getProductById = async (req, res, next) => {
   try {
-    const { product_id } = req.body;
-    const query = "SELECT * FROM sn_product WHERE product_id = ?";
+    const { product_id } = req.query;
+    const query = "SELECT * FROM sn_product_details WHERE product_id = ?";
     const result = await queryDb(query, [product_id]);
 
     if (result.length === 0) {
@@ -694,7 +822,6 @@ exports.getProductById = async (req, res, next) => {
         .status(201)
         .json(returnResponse(false, true, "Product not found."));
     }
-
     return res
       .status(200)
       .json(returnResponse(true, false, "Product fetched.", result[0]));

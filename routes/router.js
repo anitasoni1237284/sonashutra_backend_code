@@ -29,13 +29,16 @@ const {
   deleteProductCategory,
   createStore,
   getAllPermissions,
+  createProduct,
+  getAllProducts,
+  getProductById,
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
 const router = express.Router();
 // login
 router.post("/login-user", encdec, loginUser);
 router.post("/login-super-user", encdec, superAdminLogin);
-// store related api ===================================================== ===================================
+// store related api =========================================================================================
 router.get("/get-store", superUserAuthCheck, getStores);
 router.post("/create-store", superUserAuthCheck, encdec, createStore);
 router.post("/update-store", superUserAuthCheck, encdec, updateStore);
@@ -65,23 +68,18 @@ router.get(
   removePermissionFromRole
 );
 // category related api =================================================================================================
-router.post(
-  "/create-product-category",
-  userAuthCheck,
-  encdec,
-  createProductCategory
-);
+router.post("/create-product-category", userAuthCheck, createProductCategory);
 router.get("/get-product-category", generalAuthCheck, getAllProductCategories);
 router.get(
   "/get-product-category-by-id",
   generalAuthCheck,
   getProductCategoryById
 );
-router.post(
-  "/update-product-category",
-  userAuthCheck,
-  encdec,
-  updateProductCategory
-);
+router.post("/update-product-category", userAuthCheck, updateProductCategory);
 router.get("/delete-product-category", userAuthCheck, deleteProductCategory);
+
+// product related api's =====================================================================
+router.post("/create-product", userAuthCheck, createProduct);
+router.get("/get-all-products", userAuthCheck, getAllProducts);
+router.get("/get-product-by-id", userAuthCheck, getProductById);
 module.exports = router;
