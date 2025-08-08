@@ -59,6 +59,32 @@ exports.userAuthCheck = (req, res, next) => {
     });
   }
 };
+exports.customerAuthCheck = (req, res, next) => {
+  // Get token from the Authorization header
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader) {
+    return res
+      .status(401)
+      .json({ success: false, error: "Authorization header is missing." });
+  }
+  const [bearer, token] = authHeader.split(" ");
+  if (bearer !== "Bearer" || !token) {
+    return res.status(401).json({
+      success: false,
+      error: 'Invalid Authorization format. Must be "Bearer <token>".',
+    });
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.userId = decoded.userId; // Attach the user ID to the request object
+    next();
+  } catch (err) {
+    return res.status(401).json({
+      success: false,
+      error: err?.message || "Invalid or expired token.",
+    });
+  }
+};
 exports.superUserAuthCheck = (req, res, next) => {
   // Get token from the Authorization header
   const authHeader = req.headers.authorization;

@@ -5,6 +5,7 @@ const {
   userAuthCheck,
   superUserAuthCheck,
   generalAuthCheck,
+  customerAuthCheck,
 } = require("../middleware");
 const {
   createProductCategory,
@@ -32,8 +33,29 @@ const {
   createProduct,
   getAllProducts,
   getProductById,
+  updateProduct,
+  deleteProduct,
+  createProductImage,
+  getProductImages,
+  updateProductImage,
+  deleteProductImage,
+  createProductAttribute,
+  getProductAttributes,
+  createUnit,
+  getAllUnits,
+  updateUnit,
+  deleteUnit,
+  createProductAttributeValue,
+  getProductAttributeValues,
+  updateProductAttribute,
+  updateProductAttributeValue,
+  deleteProductAttribute,
+  deleteProductAttributeValue,
+
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
+const { createInventory, getInventory, updateInventory } = require("../controllers/index2");
+const { createCustomer, loginCustomer, getAllCustomers, getCustomersProfile, updateCustomer } = require("../controllers/customer");
 const router = express.Router();
 // login
 router.post("/login-user", encdec, loginUser);
@@ -82,4 +104,60 @@ router.get("/delete-product-category", userAuthCheck, deleteProductCategory);
 router.post("/create-product", userAuthCheck, createProduct);
 router.get("/get-all-products", userAuthCheck, getAllProducts);
 router.get("/get-product-by-id", userAuthCheck, getProductById);
+router.post("/update-product", userAuthCheck, updateProduct);
+router.get("/delete-product", userAuthCheck, deleteProduct);
+// product image related api's ============================================================
+router.post("/upload-product-image", userAuthCheck, createProductImage);
+router.get("/get-product-image", userAuthCheck, getProductImages);
+router.post("/update-product-image", userAuthCheck, updateProductImage);
+router.get("/delete-product-image", userAuthCheck, deleteProductImage);
+// unis related api's
+router.post("/create-units", userAuthCheck, createUnit);
+router.get("/get-all-units", userAuthCheck, getAllUnits);
+router.post("/update-units", userAuthCheck, updateUnit);
+router.get("/delete-units", userAuthCheck, deleteUnit);
+// get attribute related api's ===========================================================================
+router.post(
+  "/create-product-attributes",
+  userAuthCheck,
+  createProductAttribute
+);
+router.get("/get-product-attributes", userAuthCheck, getProductAttributes);
+router.post(
+  "/update-product-attributes",
+  userAuthCheck,
+  updateProductAttribute
+);
+router.get("/delete-product-attributes", userAuthCheck, deleteProductAttribute);
+// product attribute values related api's ===============================================
+router.post(
+  "/create-product-attribute-value",
+  userAuthCheck,
+  createProductAttributeValue
+);
+router.get(
+  "/get-product-attribute-value",
+  userAuthCheck,
+  getProductAttributeValues
+);
+router.post(
+  "/update-attribute-value",
+  userAuthCheck,
+  updateProductAttributeValue
+);
+router.get(
+  "/delete-attribute-value",
+  userAuthCheck,
+  deleteProductAttributeValue
+);
+// inventory related ap's
+router.post("/create-product-inventory", userAuthCheck, createInventory);
+router.get("/get-product-inventory", userAuthCheck, getInventory);
+router.post("/update-product-inventory", userAuthCheck, updateInventory);
+// customer related api's
+router.post("/create-customer", createCustomer);
+router.post("/login-customer", loginCustomer);
+router.get("/get-all-customer",userAuthCheck, getAllCustomers);
+router.get("/get-customer-profile",customerAuthCheck, getCustomersProfile);
+router.post("/update-customer-profile",customerAuthCheck, updateCustomer);
 module.exports = router;
