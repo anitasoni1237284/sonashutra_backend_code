@@ -51,6 +51,7 @@ const {
   updateProductAttributeValue,
   deleteProductAttribute,
   deleteProductAttributeValue,
+  createUser,
 
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
@@ -72,6 +73,7 @@ router.get("/get-role-by-id", generalAuthCheck, getRoleById);
 router.post("/update-role", superUserAuthCheck, encdec, updateRole);
 router.get("/delete-role", superUserAuthCheck, deleteRole);
 // user related api ==============================================================================================
+router.post("/create-user", superUserAuthCheck,encdec, createUser);
 router.get("/get-user", superUserAuthCheck, getAllUsers);
 router.get("/get-user-by-id", generalAuthCheck, getUserById);
 router.post("/update-user-by-id", superUserAuthCheck, encdec, updateUser);
