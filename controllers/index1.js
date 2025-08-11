@@ -1,11 +1,9 @@
 const uploadToCloudinary = require("../config/cloudinay");
-const cl = require("../config/cloudinay");
 const { returnResponse } = require("../helper/helperResponse");
 const { queryDb } = require("../helper/utilityHelper");
 const { checkPermission } = require("../middleware");
 const cloudinary = require("cloudinary").v2;
-const streamifier = require("streamifier");
-
+const bcrypt = require("bcrypt");
 require("dotenv").config();
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
