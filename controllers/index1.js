@@ -270,7 +270,7 @@ exports.createUser = async (req, res, next) => {
     }
 
     // Hash the password
-    const saltRounds = process.env.SALT_ROUND;
+    const saltRounds = Number(process.env.SALT_ROUND);
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     const query = `
