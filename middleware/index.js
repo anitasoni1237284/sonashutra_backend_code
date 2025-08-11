@@ -1,6 +1,7 @@
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
 const { queryDb } = require("../helper/utilityHelper");
+const { returnResponse } = require("../helper/helperResponse");
 
 exports.generalAuthCheck = (req, res, next) => {
   // Get token from the Authorization header

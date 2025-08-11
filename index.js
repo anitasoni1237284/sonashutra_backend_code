@@ -37,13 +37,15 @@ app.get("/", async (req, res) => {
 // }
 // name()
 
-
-
-
-// console.log(enCryptData({
-//   username:"anand",
-//   password:"123"
-// }))
+// console.log(
+//   enCryptData({
+//     username: "anand",
+//     password: "123",
+//     email: "vermaanand278@gmail.com",
+//     roleId: 8,
+//     store_id: 1,
+//   })
+// );
 app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });

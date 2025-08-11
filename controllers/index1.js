@@ -294,6 +294,7 @@ exports.createUser = async (req, res, next) => {
       .status(200)
       .json(returnResponse(true, false, "User created successfully."));
   } catch (e) {
+    console.log(e)
     next(e);
   }
 };
