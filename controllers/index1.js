@@ -352,18 +352,18 @@ exports.getUserById = async (req, res, next) => {
 
 exports.updateUser = async (req, res, next) => {
   try {
-    const hasPermission = await checkPermission(req.userId, "update_user");
-    if (!hasPermission) {
-      return res
-        .status(201)
-        .json(
-          returnResponse(
-            false,
-            true,
-            "You do not have permission to this action."
-          )
-        );
-    }
+    // const hasPermission = await checkPermission(req.userId, "update_user");
+    // if (!hasPermission) {
+    //   return res
+    //     .status(201)
+    //     .json(
+    //       returnResponse(
+    //         false,
+    //         true,
+    //         "You do not have permission to this action."
+    //       )
+    //     );
+    // }
     const {
       userId,
       username,
