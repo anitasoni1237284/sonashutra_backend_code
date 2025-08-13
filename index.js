@@ -46,6 +46,51 @@ app.get("/", async (req, res) => {
 //     store_id: 1,
 //   })
 // );
+// {
+//   "status": "Pending",
+//   "payment_method": 1,
+//   "payment_status": "Unpaid",
+//   "notes": "N/A",
+//   "items": [
+//     {
+//       "product_id": 6,
+//       "quantity": 2,
+//       "unit_price": 1500,
+//       "discount": 10,
+//       "tax_percent": 18
+//     },
+//     {
+//       "product_id": 6,
+//       "quantity": 1,
+//       "unit_price": 2500,
+//       "discount": 0,
+//       "tax_percent": 18
+//     }
+//   ],
+//   "payment": {
+//     "method": 1,
+//     "status": "Unpaid",
+//     "amount": 5500
+//   }
+// }
+
+
+// console.log(JSON.stringify([
+//   {
+//     "product_id": 6,
+//     "quantity": 2,
+//     "unit_price": 1500,
+//     "discount": 10,
+//     "tax_percent": 18
+//   },
+//   {
+//     "product_id": 6,
+//     "quantity": 1,
+//     "unit_price": 2500,
+//     "discount": 0,
+//     "tax_percent": 18
+//   }
+// ]))
 app.listen(PORT, () => {
   console.log("Server listening on port", PORT);
 });

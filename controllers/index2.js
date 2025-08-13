@@ -1,8 +1,14 @@
 // yha se api banan hai...
 
+const sequelize = require("../config/seq.config");
 const { returnResponse } = require("../helper/helperResponse");
-const { queryDb } = require("../helper/utilityHelper");
+const {
+  queryDb,
+  randomStrAlphabet,
+  randomStrNumeric,
+} = require("../helper/utilityHelper");
 const { checkPermission } = require("../middleware");
+const moment = require("moment");
 
 // Create Inventory Entry
 exports.createInventory = async (req, res, next) => {
@@ -39,7 +45,7 @@ exports.createInventory = async (req, res, next) => {
     // Required fields check
     if (!product_id || !warehouse_id || quantity == null) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -52,14 +58,14 @@ exports.createInventory = async (req, res, next) => {
     // Quantity validation
     if (quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Quantity cannot be negative."));
     }
 
     // Minimum quantity validation
     if (minimum_quantity != null && minimum_quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Minimum quantity cannot be negative.")
         );
@@ -68,14 +74,14 @@ exports.createInventory = async (req, res, next) => {
     // Reserved quantity validation
     if (reserved_quantity != null && reserved_quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Reserved quantity cannot be negative.")
         );
     }
     if (reserved_quantity != null && reserved_quantity > quantity) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -92,7 +98,7 @@ exports.createInventory = async (req, res, next) => {
       today.setHours(0, 0, 0, 0);
       if (expDate < today) {
         return res
-          .status(400)
+          .status(201)
           .json(
             returnResponse(false, true, "Expiry date cannot be in the past.")
           );
@@ -105,15 +111,16 @@ exports.createInventory = async (req, res, next) => {
     const query = `
       INSERT INTO sn_product_inventory 
       (
-        product_id, warehouse_id, value_id, sku, barcode, quantity, 
+        product_id,inventory_unique, warehouse_id, value_id, sku, barcode, quantity, 
         reserved_quantity, minimum_quantity, batch_number, expiry_date, 
         last_updated, created_at, updated_by
       ) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     await queryDb(query, [
       product_id,
+      Date.now() + randomStrNumeric(5),
       warehouse_id || null,
       value_id || null,
       sku || null,
@@ -173,7 +180,7 @@ exports.updateInventory = async (req, res, next) => {
     // Required fields check
     if (!inventory_id || quantity == null) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Inventory ID and Quantity are required.")
         );
@@ -182,14 +189,14 @@ exports.updateInventory = async (req, res, next) => {
     // Quantity validation
     if (quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(returnResponse(false, true, "Quantity cannot be negative."));
     }
 
     // Minimum quantity validation
     if (minimum_quantity != null && minimum_quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Minimum quantity cannot be negative.")
         );
@@ -198,14 +205,14 @@ exports.updateInventory = async (req, res, next) => {
     // Reserved quantity validation
     if (reserved_quantity != null && reserved_quantity < 0) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(false, true, "Reserved quantity cannot be negative.")
         );
     }
     if (reserved_quantity != null && reserved_quantity > quantity) {
       return res
-        .status(400)
+        .status(201)
         .json(
           returnResponse(
             false,
@@ -222,7 +229,7 @@ exports.updateInventory = async (req, res, next) => {
       today.setHours(0, 0, 0, 0);
       if (expDate < today) {
         return res
-          .status(400)
+          .status(201)
           .json(
             returnResponse(false, true, "Expiry date cannot be in the past.")
           );
@@ -272,30 +279,386 @@ exports.deleteInventory = async (req, res, next) => {
     next(e);
   }
 };
-
-// Create Order
-exports.createCustomerOrder = async (req, res, next) => {
+exports.createPaymentMethod = async (req, res, next) => {
   try {
-    const { customer_id, status, total_amount } = req.body;
-
-    if (!customer_id) {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "create_payment_method"
+    );
+    if (!hasPermission) {
       return res
         .status(201)
-        .json(returnResponse(false, true, "Customer ID is required."));
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { pm_name, pm_type, pm_status = 1, pm_description } = req.body;
+
+    // Validation
+    if (!pm_name || typeof pm_name !== "string" || pm_name.trim() === "") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Payment method name is required and must be a valid string."
+          )
+        );
     }
 
-    const order_date = new Date();
+    if (!pm_type || typeof pm_type !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Payment method type is required and must be a valid string."
+          )
+        );
+    }
 
+    // Insert the payment method into the database
     const query = `
-      INSERT INTO sn_customer_order (customer_id, order_date, status, total_amount)
-      VALUES (?, ?, ?, ?)`;
+      INSERT INTO sn_payment_method (pm_name, pm_type, pm_status, pm_description)
+      VALUES (?, ?, ?, ?)
+    `;
 
-    await queryDb(query, [customer_id, order_date, status, total_amount]);
+    await queryDb(query, [
+      pm_name.trim(),
+      pm_type.trim(),
+      pm_status,
+      pm_description,
+    ]);
 
     return res
       .status(200)
-      .json(returnResponse(true, false, "Order created successfully."));
+      .json(
+        returnResponse(true, false, "Payment method created successfully.")
+      );
   } catch (e) {
+    next(e);
+  }
+};
+exports.getPaymentMethod = async (req, res, next) => {
+  try {
+    const query = ` SELECT * FROM sn_payment_method;`;
+
+    const result = await queryDb(query, []);
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Payment methods fetched.", result));
+  } catch (e) {
+    next(e);
+  }
+};
+// Create Order
+exports.createCustomerOrder = async (req, res, next) => {
+  const userId = req.userId;
+  let t;
+  try {
+    const {
+      status = "Pending", // Pending, Paid, Shipped, Completed, Cancelled
+      payment_method, // number
+      payment_status = "Unpaid", // Unpaid, Paid, Refunded
+      notes = "N/A",
+      items, // [{ product_id,inventory_unique, quantity }]
+      payment, // { method, status, amount }
+    } = req.body;
+
+    // Parse JSON fields
+    let parsedItems, parsedPayment;
+    try {
+      parsedItems = typeof items === "string" ? JSON.parse(items) : items;
+      parsedPayment = payment
+        ? typeof payment === "string"
+          ? JSON.parse(payment)
+          : payment
+        : null;
+    } catch (err) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Invalid JSON format in items or payment."
+          )
+        );
+    }
+
+    if (!parsedItems || parsedItems.length === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Items are required."));
+    }
+    // Check inventory availability
+
+    // Get default shipping address
+    const orderInfo = await queryDb(
+      `SELECT * FROM sn_shipping_address WHERE customer_id = ? AND is_default = 1 LIMIT 1;`,
+      [userId]
+    );
+    if (orderInfo.length === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Please add a shipping address."));
+    }
+
+    t = await sequelize.transaction();
+    for (const item of parsedItems) {
+      const pro_unit_price = await queryDb(
+        "SELECT name FROM sn_product WHERE product_id = ? LIMIT 1;",
+        [Number(item.product_id)],
+        t
+      );
+
+      const inventoryData = await queryDb(
+        `SELECT quantity, reserved_quantity 
+     FROM sn_product_inventory 
+     WHERE inventory_unique = ? 
+     LIMIT 1;`,
+        [Number(item.inventory_unique)],
+        t
+      );
+
+      if (!inventoryData || inventoryData.length === 0) {
+        await t.rollback();
+        return res
+          .status(201)
+          .json(
+            returnResponse(
+              false,
+              true,
+              `No inventory record found for product ${pro_unit_price?.[0]?.name}`
+            )
+          );
+      }
+
+      const availableQty =
+        Number(inventoryData[0].quantity) -
+        Number(inventoryData[0].reserved_quantity);
+
+      if (availableQty < Number(item.quantity)) {
+        await t.rollback();
+        return res
+          .status(201)
+          .json(
+            returnResponse(
+              false,
+              true,
+              `Insufficient stock for product ${pro_unit_price?.[0]?.name}`
+            )
+          );
+      }
+    }
+
+    const order_date = new Date();
+    let base_amount = 0; // sum of product prices without tax/discount
+    let total_tax = 0;
+    let total_discount = 0;
+
+    for (const item of parsedItems) {
+      const pro_unit_price = await queryDb(
+        "SELECT price AS unit_price FROM sn_product WHERE product_id = ? LIMIT 1;",
+        [Number(item.product_id)],
+        t
+      );
+      const unitPrice = Number(pro_unit_price?.[0]?.unit_price) || 0;
+      const price = unitPrice * Number(item.quantity);
+      base_amount += price;
+
+      // Tax
+      const taxPercentData = await queryDb(
+        `SELECT IFNULL(SUM(t.percentage),0) AS total_tax
+         FROM sn_product_tax pt
+         INNER JOIN sn_tax t ON t.tax_id = pt.tax_id
+         WHERE pt.product_id = ?;`,
+        [Number(item.product_id)],
+        t
+      );
+      const taxPercent = Number(taxPercentData?.[0]?.total_tax) || 0;
+      const taxAmount = (taxPercent / 100) * price;
+      total_tax += taxAmount;
+
+      // Discount
+      const discountData = await queryDb(
+        `SELECT 
+            IFNULL(SUM(CASE WHEN d.discount_type = 'Percentage' THEN VALUE ELSE 0 END), 0) AS percent_dis,
+            IFNULL(SUM(CASE WHEN d.discount_type = 'Flat' THEN VALUE ELSE 0 END), 0) AS flat_dis
+         FROM sn_discount d
+         INNER JOIN sn_product_discount pd ON pd.discount_id = d.discount_id
+         WHERE pd.product_id = ?;`,
+        [Number(item.product_id)],
+        t
+      );
+      const discountPercent = Number(discountData?.[0]?.percent_dis) || 0;
+      const discountFlat = Number(discountData?.[0]?.flat_dis) || 0;
+      const discountAmount = (discountPercent / 100) * price + discountFlat;
+      total_discount += discountAmount;
+    }
+    // Correct totals
+    const total_amount = base_amount + total_tax; // price including tax but before discount
+    const grand_total = total_amount - total_discount; // after discount
+
+    const orderuniqueid = Date.now() + randomStrNumeric(10);
+
+    const storeData = await queryDb(
+      "SELECT store_id FROM sn_product WHERE product_id = ? LIMIT 1;",
+      [Number(parsedItems?.[0]?.product_id)],
+      t
+    );
+
+    const orderResult = await queryDb(
+      `INSERT INTO sn_customer_order 
+      (customer_id, order_unique, order_date, status, store_id, payment_method, payment_status, 
+      shipping_address, billing_address, notes, total_amount, total_tax, total_discount, grand_total, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        userId,
+        orderuniqueid,
+        order_date,
+        status,
+        storeData?.[0]?.store_id || null,
+        payment_method || null,
+        payment_status,
+        null,
+        null,
+        notes || null,
+        base_amount, // before discount
+        total_tax,
+        total_discount,
+        grand_total, // after discount
+      ],
+      t
+    );
+
+    const order_id = orderResult;
+
+    // Insert each order item
+    for (const item of parsedItems) {
+      const pro_unit_price = await queryDb(
+        "SELECT price AS unit_price, store_id FROM sn_product WHERE product_id = ? LIMIT 1;",
+        [Number(item.product_id)],
+        t
+      );
+
+      const unitPrice = Number(pro_unit_price?.[0]?.unit_price) || 0;
+      const price = unitPrice * Number(item.quantity);
+
+      // Discount calculation first
+      const discountData = await queryDb(
+        `SELECT 
+            IFNULL(SUM(CASE WHEN d.discount_type = 'Percentage' THEN VALUE ELSE 0 END), 0) AS percent_dis,
+            IFNULL(SUM(CASE WHEN d.discount_type = 'Flat' THEN VALUE ELSE 0 END), 0) AS flat_dis
+         FROM sn_discount d
+         INNER JOIN sn_product_discount pd ON pd.discount_id = d.discount_id
+         WHERE pd.product_id = ?;`,
+        [Number(item.product_id)],
+        t
+      );
+
+      const discountPercent = Number(discountData?.[0]?.percent_dis) || 0;
+      const discountFlat = Number(discountData?.[0]?.flat_dis) || 0;
+
+      const discountAmount =
+        (discountPercent / 100) * price + discountFlat * Number(item.quantity);
+
+      // Tax on discounted price
+      const taxPercentData = await queryDb(
+        `SELECT IFNULL(SUM(t.percentage),0) AS total_tax
+         FROM sn_product_tax pt
+         INNER JOIN sn_tax t ON t.tax_id = pt.tax_id
+         WHERE pt.product_id = ?;`,
+        [Number(item.product_id)],
+        t
+      );
+
+      const taxPercent =
+        Number(taxPercentData?.[0]?.total_tax) * Number(item.quantity) || 0;
+      const taxAmount = (Number(taxPercentData?.[0]?.total_tax) / 100) * price;
+
+      await queryDb(
+        `INSERT INTO sn_order_item 
+         (order_id, order_unique_id, product_id, quantity, unit_price, discount, tax_amount, tax_percent,grand_total, store_id, created_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW())`,
+        [
+          order_id,
+          orderuniqueid,
+          item.product_id,
+          item.quantity,
+          unitPrice,
+          discountAmount,
+          taxAmount,
+          taxPercent,
+          price - discountAmount + taxAmount,
+          pro_unit_price?.[0]?.store_id,
+        ],
+        t
+      );
+
+      await queryDb(
+        `UPDATE sn_product_inventory
+         SET quantity = quantity - ?, last_updated = NOW(), updated_by = 'User'
+         WHERE inventory_unique = ?;`,
+        [Number(item.quantity), Number(item.inventory_unique)],
+        t
+      );
+    }
+
+    // Insert payment if exists
+    if (parsedPayment) {
+      await queryDb(
+        `INSERT INTO sn_payment 
+        (order_id, payment_method, payment_status, payment_date, amount) 
+        VALUES (?, ?, ?, NOW(), ?)`,
+        [
+          order_id,
+          parsedPayment.method || payment_method || null,
+          parsedPayment.status || payment_status,
+          parsedPayment.amount || grand_total,
+        ],
+        t
+      );
+    }
+
+    // Insert shipping details (enum: 0=Pending, 1=Shipped, 2=Delivered, 3=Cancelled)
+    const shippingDetails = await queryDb(
+      `INSERT INTO sn_shipping_detail 
+       (order_id, address, city, state, postal_code, country, shipping_status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        order_id,
+        `${orderInfo?.[0]?.address_line1 || ""} ${
+          orderInfo?.[0]?.address_line2 || ""
+        }`,
+        orderInfo?.[0]?.city || "",
+        orderInfo?.[0]?.state || "",
+        orderInfo?.[0]?.postal_code || "",
+        orderInfo?.[0]?.country || "",
+        1, // 1 = Pending
+      ],
+      t
+    );
+    await queryDb(
+      "UPDATE sn_customer_order SET shipping_address = ?,billing_address=? WHERE order_id = ? LIMIT 1;",
+      [shippingDetails, shippingDetails, order_id],
+      t
+    );
+    await t.commit();
+    return res.status(200).json(
+      returnResponse(true, false, "Order placed successfully.", {
+        orderId: orderuniqueid,
+      })
+    );
+  } catch (e) {
+    console.log(e);
+    if (t) await t.rollback();
     next(e);
   }
 };
@@ -816,14 +1179,77 @@ exports.deleteSupplier = async (req, res, next) => {
 
 exports.createDiscount = async (req, res, next) => {
   try {
+    const hasPermission = await checkPermission(req.userId, "create_discount");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
     const {
       name,
       discount_type,
       value,
       start_date,
       end_date,
-      is_active = true,
+      is_active = "Active",
     } = req.body;
+
+    // Basic validations
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "Name is required and must be a string.")
+        );
+    }
+
+    if (!discount_type || typeof discount_type !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Discount type is required and must be a string."
+          )
+        );
+    }
+
+    if (value === undefined || isNaN(value) || Number(value) <= 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Value must be a positive number."));
+    }
+
+    // Validate date format using moment.js
+    if (
+      !moment(start_date, "YYYY-MM-DD", true).isValid() ||
+      !moment(end_date, "YYYY-MM-DD", true).isValid()
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Start date and end date must be valid 'YYYY-MM-DD' format."
+          )
+        );
+    }
+
+    if (moment(end_date).isBefore(moment(start_date))) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "End date must be after start date.")
+        );
+    }
 
     const query = `
       INSERT INTO sn_discount (name, discount_type, value, start_date, end_date, is_active)
@@ -831,9 +1257,9 @@ exports.createDiscount = async (req, res, next) => {
     `;
 
     await queryDb(query, [
-      name,
-      discount_type,
-      value,
+      name.trim(),
+      discount_type.trim(),
+      parseFloat(value),
       start_date,
       end_date,
       is_active,
@@ -852,7 +1278,11 @@ exports.getAllDiscounts = async (req, res, next) => {
     const query = `SELECT * FROM sn_discount`;
 
     const result = await queryDb(query);
-    return res.status(200).json(returnResponse(true, false, result));
+    return res
+      .status(200)
+      .json(
+        returnResponse(true, false, "Discount fetched Succesfully", result)
+      );
   } catch (e) {
     next(e);
   }
@@ -873,10 +1303,104 @@ exports.getDiscountById = async (req, res, next) => {
 
 exports.updateDiscount = async (req, res, next) => {
   try {
-    const { discount_id } = req.params;
-    const { name, discount_type, value, start_date, end_date, is_active } =
-      req.body;
+    const hasPermission = await checkPermission(req.userId, "update_discount");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const {
+      discount_id,
+      name,
+      discount_type,
+      value,
+      start_date,
+      end_date,
+      is_active,
+    } = req.body;
 
+    // Validation checks
+    if (!discount_id || isNaN(discount_id)) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Invalid or missing discount ID."));
+    }
+
+    // Name validation
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "Name is required and must be a string.")
+        );
+    }
+
+    // Discount type validation
+    if (!discount_type || typeof discount_type !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Discount type is required and must be a string."
+          )
+        );
+    }
+
+    // Value validation (must be a positive number)
+    if (value === undefined || isNaN(value) || Number(value) <= 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Value must be a positive number."));
+    }
+
+    // Date validation using moment.js
+    if (
+      !moment(start_date, "YYYY-MM-DD", true).isValid() ||
+      !moment(end_date, "YYYY-MM-DD", true).isValid()
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Start date and end date must be valid 'YYYY-MM-DD' format."
+          )
+        );
+    }
+
+    // End date should be after the start date
+    if (moment(end_date).isBefore(moment(start_date))) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "End date must be after start date.")
+        );
+    }
+
+    // is_active validation (must be 'Active' or 'Deactive')
+    const validStatus = ["Active", "Deactive"];
+    if (is_active && !validStatus.includes(is_active)) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "is_active must be 'Active' or 'Deactive'."
+          )
+        );
+    }
+
+    // Query to update the discount
     const query = `
       UPDATE sn_discount
       SET name = ?, discount_type = ?, value = ?, start_date = ?, end_date = ?, is_active = ?
@@ -884,12 +1408,12 @@ exports.updateDiscount = async (req, res, next) => {
     `;
 
     await queryDb(query, [
-      name,
-      discount_type,
-      value,
+      name.trim(),
+      discount_type.trim(),
+      parseFloat(value),
       start_date,
       end_date,
-      is_active,
+      is_active || "Active", // Default to 'Active' if not provided
       discount_id,
     ]);
 
@@ -903,8 +1427,24 @@ exports.updateDiscount = async (req, res, next) => {
 
 exports.deleteDiscount = async (req, res, next) => {
   try {
-    const { discount_id } = req.body;
-
+    const hasPermission = await checkPermission(req.userId, "delete_discount");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { discount_id } = req.query;
+    if (!discount_id || isNaN(discount_id)) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Invalid or missing discount ID."));
+    }
     const query = `DELETE FROM sn_discount WHERE discount_id = ?`;
     await queryDb(query, [discount_id]);
 
@@ -920,8 +1460,33 @@ exports.deleteDiscount = async (req, res, next) => {
 
 exports.createProductDiscount = async (req, res, next) => {
   try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "create_product_discount"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
     const { product_id, discount_id } = req.body;
-
+    if (!product_id || !discount_id || isNaN(discount_id)) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Invalid or missing discount ID or Product ID."
+          )
+        );
+    }
     const query = `
       INSERT INTO sn_product_discount (product_id, discount_id)
       VALUES (?, ?)
@@ -945,11 +1510,8 @@ exports.createProductDiscount = async (req, res, next) => {
 
 exports.getAllProductDiscounts = async (req, res, next) => {
   try {
-    const query = `
-      SELECT pd.*, p.productName, d.name AS discount_name
-      FROM sn_product_discount pd
-      JOIN sn_product p ON p.product_id = pd.product_id
-      JOIN sn_discount d ON d.discount_id = pd.discount_id
+    const query = ` 
+      SELECT * FROM sn_product_discount_details;
     `;
 
     const result = await queryDb(query);
@@ -980,9 +1542,33 @@ exports.getProductDiscountById = async (req, res, next) => {
 
 exports.updateProductDiscount = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { product_id, discount_id } = req.body;
-
+    const hasPermission = await checkPermission(
+      req.userId,
+      "update_product_discount"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { id, product_id, discount_id } = req.body;
+    if (!id || !product_id || !discount_id || isNaN(discount_id)) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Invalid or missing discount ID or Product ID or id"
+          )
+        );
+    }
     const query = `
       UPDATE sn_product_discount
       SET product_id = ?, discount_id = ?
@@ -1007,7 +1593,22 @@ exports.updateProductDiscount = async (req, res, next) => {
 
 exports.deleteProductDiscount = async (req, res, next) => {
   try {
-    const { id } = req.body;
+    const hasPermission = await checkPermission(
+      req.userId,
+      "delete_product_discount"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { id } = req.query;
 
     const query = `DELETE FROM sn_product_discount WHERE id = ?`;
     await queryDb(query, [id]);
@@ -1029,8 +1630,48 @@ exports.deleteProductDiscount = async (req, res, next) => {
 
 exports.createTax = async (req, res, next) => {
   try {
-    const { name, percentage, is_active = true } = req.body;
+    const hasPermission = await checkPermission(req.userId, "create_tax");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { name, percentage, is_active = 1 } = req.body;
+    if (!name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Name is required and must be a valid string."
+          )
+        );
+    }
 
+    // Validate the percentage (must be a number between 0 and 100)
+    if (
+      percentage === undefined ||
+      isNaN(percentage) ||
+      percentage < 0 ||
+      percentage > 100
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Percentage must be a number between 0 and 100."
+          )
+        );
+    }
     const query = `
       INSERT INTO sn_tax (name, percentage, is_active)
       VALUES (?, ?, ?)
@@ -1051,7 +1692,9 @@ exports.getAllTaxes = async (req, res, next) => {
     const query = `SELECT * FROM sn_tax`;
     const result = await queryDb(query);
 
-    return res.status(200).json(returnResponse(true, false, result));
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Tax fetched successfully", result));
   } catch (e) {
     next(e);
   }
@@ -1072,9 +1715,48 @@ exports.getTaxById = async (req, res, next) => {
 
 exports.updateTax = async (req, res, next) => {
   try {
-    const { tax_id } = req.params;
-    const { name, percentage, is_active } = req.body;
+    const hasPermission = await checkPermission(req.userId, "update_tax");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { tax_id, name, percentage, is_active = 1 } = req.body;
+    if (!tax_id || !name || typeof name !== "string" || name.trim() === "") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Tax Id and Name is required and must be a valid string."
+          )
+        );
+    }
 
+    // Validate the percentage (must be a number between 0 and 100)
+    if (
+      percentage === undefined ||
+      isNaN(percentage) ||
+      percentage < 0 ||
+      percentage > 100
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Percentage must be a number between 0 and 100."
+          )
+        );
+    }
     const query = `
       UPDATE sn_tax
       SET name = ?, percentage = ?, is_active = ?
@@ -1093,8 +1775,30 @@ exports.updateTax = async (req, res, next) => {
 
 exports.deleteTax = async (req, res, next) => {
   try {
-    const { tax_id } = req.body;
-
+    const hasPermission = await checkPermission(req.userId, "delete_tax");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { tax_id } = req.query;
+    if (!tax_id) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Tax Id is required and must be a valid string."
+          )
+        );
+    }
     const query = `DELETE FROM sn_tax WHERE tax_id = ?`;
     await queryDb(query, [tax_id]);
 
@@ -1110,8 +1814,33 @@ exports.deleteTax = async (req, res, next) => {
 
 exports.createProductTax = async (req, res, next) => {
   try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "create_product_tax"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
     const { product_id, tax_id } = req.body;
-
+    if (!product_id || !tax_id) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Tax Id And Product Id is required and must be a valid string."
+          )
+        );
+    }
     const query = `
       INSERT INTO sn_product_tax (product_id, tax_id)
       VALUES (?, ?)
@@ -1131,10 +1860,12 @@ exports.createProductTax = async (req, res, next) => {
 
 exports.getAllProductTaxes = async (req, res, next) => {
   try {
-    const query = `SELECT * FROM sn_product_tax`;
+    const query = `SELECT * FROM sn_tax_details`;
     const result = await queryDb(query);
 
-    return res.status(200).json(returnResponse(true, false, result));
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Product Tax", result));
   } catch (e) {
     next(e);
   }
@@ -1155,9 +1886,33 @@ exports.getProductTaxById = async (req, res, next) => {
 
 exports.updateProductTax = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { product_id, tax_id } = req.body;
-
+    const hasPermission = await checkPermission(
+      req.userId,
+      "update_product_tax"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+    const { product_id, tax_id, id } = req.body;
+    if (!product_id || !tax_id || !id) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Tax Id And Product Id is ID required and must be a valid string."
+          )
+        );
+    }
     const query = `
       UPDATE sn_product_tax
       SET product_id = ?, tax_id = ?
@@ -1178,8 +1933,14 @@ exports.updateProductTax = async (req, res, next) => {
 
 exports.deleteProductTax = async (req, res, next) => {
   try {
-    const { id } = req.body;
-
+    const { id } = req.query;
+    if (!id) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "ID required and must be a valid Number.")
+        );
+    }
     const query = `DELETE FROM sn_product_tax WHERE id = ?`;
     await queryDb(query, [id]);
 

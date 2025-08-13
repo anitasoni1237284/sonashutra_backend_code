@@ -62,14 +62,15 @@ module.exports = {
     return ans;
   },
 
-  queryDb: function (query, param = []) {
+  queryDb: function (query, param = [], transaction = null) {
     return new Promise((resolve, reject) => {
       sequelize
         .query(query, {
           replacements: param,
+          transaction: transaction || undefined, // Add transaction if provided
         })
         .then((res) => resolve(res?.[0]))
-        .catch((err) => reject(err)); // Properly reject the error
+        .catch((err) => reject(err));
     });
   },
 };

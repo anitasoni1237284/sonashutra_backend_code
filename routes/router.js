@@ -52,11 +52,42 @@ const {
   deleteProductAttribute,
   deleteProductAttributeValue,
   createUser,
-
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
-const { createInventory, getInventory, updateInventory } = require("../controllers/index2");
-const { createCustomer, loginCustomer, getAllCustomers, getCustomersProfile, updateCustomer } = require("../controllers/customer");
+const {
+  createInventory,
+  getInventory,
+  updateInventory,
+  createCustomerOrder,
+  createDiscount,
+  getAllDiscounts,
+  updateDiscount,
+  deleteDiscount,
+  createProductDiscount,
+  getAllProductDiscounts,
+  updateProductDiscount,
+  deleteProductDiscount,
+  createTax,
+  getAllTaxes,
+  updateTax,
+  deleteTax,
+  createProductTax,
+  getAllProductTaxes,
+  updateProductTax,
+  deleteProductTax,
+  createPaymentMethod,
+  getPaymentMethod,
+} = require("../controllers/index2");
+const {
+  createCustomer,
+  loginCustomer,
+  getAllCustomers,
+  getCustomersProfile,
+  updateCustomer,
+  createShippingAddress,
+  setShippingAddressAsDefault,
+  getShippingAddress,
+} = require("../controllers/customer");
 const router = express.Router();
 // login
 router.post("/login-user", encdec, loginUser);
@@ -73,7 +104,7 @@ router.get("/get-role-by-id", generalAuthCheck, getRoleById);
 router.post("/update-role", superUserAuthCheck, encdec, updateRole);
 router.get("/delete-role", superUserAuthCheck, deleteRole);
 // user related api ==============================================================================================
-router.post("/create-user",encdec, createUser);
+router.post("/create-user", encdec, createUser);
 router.get("/get-user", superUserAuthCheck, getAllUsers);
 router.get("/get-user-by-id", generalAuthCheck, getUserById);
 router.post("/update-user-by-id", superUserAuthCheck, encdec, updateUser);
@@ -156,10 +187,41 @@ router.get(
 router.post("/create-product-inventory", userAuthCheck, createInventory);
 router.get("/get-product-inventory", userAuthCheck, getInventory);
 router.post("/update-product-inventory", userAuthCheck, updateInventory);
+// discount related api's
+router.post("/create-discount", userAuthCheck, createDiscount);
+router.get("/get-discount", generalAuthCheck, getAllDiscounts);
+router.post("/update-discount", userAuthCheck, updateDiscount);
+router.get("/delete-discount", userAuthCheck, deleteDiscount);
+// product discount related api's
+router.post("/create-product-discount", userAuthCheck, createProductDiscount);
+router.get("/get-product-discount", generalAuthCheck, getAllProductDiscounts);
+router.post("/update-product-discount", userAuthCheck, updateProductDiscount);
+router.get("/delete-product-discount", userAuthCheck, deleteProductDiscount);
+// tax related api's
+router.post("/create-tax", userAuthCheck, createTax);
+router.get("/get-tax", userAuthCheck, getAllTaxes);
+router.post("/update-tax", userAuthCheck, updateTax);
+router.get("/delete-tax", userAuthCheck, deleteTax);
+
+// create product tax
+router.post("/create-product-tax", userAuthCheck, createProductTax);
+router.get("/get-product-tax", userAuthCheck, getAllProductTaxes);
+router.post("/update-product-tax", userAuthCheck, updateProductTax);
+router.get("/delete-product-tax", userAuthCheck, deleteProductTax);
+// create payment methods
+router.post("/create-payment-method", userAuthCheck, createPaymentMethod);
+router.get("/get-payment-method", userAuthCheck, getPaymentMethod);
 // customer related api's
 router.post("/create-customer", createCustomer);
 router.post("/login-customer", loginCustomer);
-router.get("/get-all-customer",userAuthCheck, getAllCustomers);
-router.get("/get-customer-profile",customerAuthCheck, getCustomersProfile);
-router.post("/update-customer-profile",customerAuthCheck, updateCustomer);
+router.get("/get-all-customer", userAuthCheck, getAllCustomers);
+router.get("/get-customer-profile", customerAuthCheck, getCustomersProfile);
+router.post("/update-customer-profile", customerAuthCheck, updateCustomer);
+// add shipping address
+router.post("/add-shipping-address", customerAuthCheck, createShippingAddress);
+router.get("/set-shipping-address-as-default", customerAuthCheck, setShippingAddressAsDefault);
+router.get("/get-shipping-address", customerAuthCheck, getShippingAddress);
+// order related api's
+router.post("/create-order", customerAuthCheck, createCustomerOrder);
+
 module.exports = router;

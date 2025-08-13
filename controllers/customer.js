@@ -376,3 +376,161 @@ exports.updateCustomer = async (req, res, next) => {
     next(e);
   }
 };
+exports.createShippingAddress = async (req, res, next) => {
+  const user_id = req.userId;
+
+  try {
+    const {
+      address_line1,
+      address_line2,
+      city,
+      state,
+      postal_code,
+      country,
+      phone_number,
+      is_default = 1,
+    } = req.body;
+
+    if (!address_line1 || typeof address_line1 !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Address Line 1 is required and must be a valid string."
+          )
+        );
+    }
+
+    if (!city || typeof city !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "City is required and must be a valid string."
+          )
+        );
+    }
+
+    if (!state || typeof state !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "State is required and must be a valid string."
+          )
+        );
+    }
+
+    if (!postal_code || typeof postal_code !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Postal code is required and must be a valid string."
+          )
+        );
+    }
+
+    if (!country || typeof country !== "string") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Country is required and must be a valid string."
+          )
+        );
+    }
+    if (Number(is_default) === 1) {
+      await queryDb(
+        "UPDATE sn_shipping_address SET is_default = 2 WHERE customer_id = ?;",
+        [user_id]
+      );
+    }
+    // Insert the shipping address
+    const query = `
+      INSERT INTO sn_shipping_address (
+        customer_id, address_line1, address_line2, city, state, postal_code, country, phone_number, is_default
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    await queryDb(query, [
+      user_id,
+      address_line1.trim(),
+      address_line2 ? address_line2.trim() : null,
+      city.trim(),
+      state.trim(),
+      postal_code.trim(),
+      country.trim(),
+      phone_number ? phone_number.trim() : null,
+      is_default,
+    ]);
+
+    return res
+      .status(200)
+      .json(
+        returnResponse(true, false, "Shipping address added successfully.")
+      );
+  } catch (e) {
+    next(e);
+  }
+};
+exports.setShippingAddressAsDefault = async (req, res, next) => {
+  const user_id = req.userId;
+
+  try {
+    const { address_id } = req.query;
+    if (!address_id) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Countraddress_idy is required."));
+    }
+    // Insert the shipping address
+    await queryDb(
+      "UPDATE `sn_shipping_address` SET `is_default` = 2 WHERE `customer_id` = ?;",
+      [user_id]
+    );
+    await queryDb(
+      "UPDATE `sn_shipping_address` SET `is_default` = 1 WHERE `address_id` = ? LIMIT 1;",
+      [address_id]
+    );
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Default Address Set successfully."));
+  } catch (e) {
+    next(e);
+  }
+};
+exports.getShippingAddress = async (req, res, next) => {
+  const user_id = req.userId;
+  try {
+    // Insert the shipping address
+    const result = await queryDb("SELECT * FROM  `sn_shipping_address`;", [
+      user_id,
+    ]);
+
+    return res
+      .status(200)
+      .json(
+        returnResponse(
+          true,
+          false,
+          "Shipping address fetched successfully.",
+          result
+        )
+      );
+  } catch (e) {
+    next(e);
+  }
+};
