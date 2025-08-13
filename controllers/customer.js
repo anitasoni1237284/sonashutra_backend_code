@@ -301,7 +301,7 @@ exports.updateCustomer = async (req, res, next) => {
        LEFT JOIN sn_customer_login l ON c.cust_lgn_id = l.cl_id
        WHERE c.customer_id = ?`,
       [customer_id],
-      { transaction: t }
+      t
     );
 
     if (!customerData || customerData.length === 0) {
@@ -340,7 +340,7 @@ exports.updateCustomer = async (req, res, next) => {
           updated_at,
           customer_id,
         ],
-        { transaction: t }
+        t
       );
     }
 
@@ -361,7 +361,7 @@ exports.updateCustomer = async (req, res, next) => {
           phone || current.cl_phone,
           current.cust_lgn_id,
         ],
-        { transaction: t }
+        t
       );
     }
 
@@ -372,6 +372,7 @@ exports.updateCustomer = async (req, res, next) => {
       .status(200)
       .json(returnResponse(true, false, "Customer updated successfully."));
   } catch (e) {
+    console.log(e);
     if (t) await t.rollback();
     next(e);
   }
