@@ -179,7 +179,12 @@ exports.loginCustomer = async (req, res, next) => {
     );
     return res
       .status(200)
-      .json(returnResponse(true, false, "Login successful.", { token }));
+      .json(
+        returnResponse(true, false, "Login successful.", {
+          token,
+          role: "customer",
+        })
+      );
   } catch (e) {
     next(e);
   }

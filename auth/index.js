@@ -48,7 +48,12 @@ exports.superAdminLogin = async (req, res, next) => {
     // Return success with token
     return res
       .status(200)
-      .json(returnResponse(true, false, "Login successful.", { token }));
+      .json(
+        returnResponse(true, false, "Login successful.", {
+          token,
+          role: "superuser",
+        })
+      );
   } catch (err) {
     next(err);
   }
@@ -65,7 +70,8 @@ exports.loginUser = async (req, res, next) => {
     }
 
     // Get user from DB
-    const query = `SELECT * FROM sn_user AS u WHERE u.username = ?`;
+    const query =
+      "SELECT u.*,r.`roleName` AS role_name FROM sn_user AS u LEFT  JOIN `sn_role` r ON r.`roleId` = u.`roleId` WHERE u.username = ? ";
     const results = await queryDb(query, [username]);
 
     if (results.length === 0) {
@@ -100,6 +106,7 @@ exports.loginUser = async (req, res, next) => {
     return res.status(200).json(
       returnResponse(true, false, "Login successful.", {
         token,
+        role: user?.role_name,
       })
     );
   } catch (err) {
