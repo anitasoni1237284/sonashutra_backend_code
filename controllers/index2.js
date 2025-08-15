@@ -31,7 +31,7 @@ exports.createInventory = async (req, res, next) => {
     const {
       product_id,
       warehouse_id,
-      value_id,
+      varient_id,
       sku,
       barcode,
       quantity,
@@ -43,14 +43,14 @@ exports.createInventory = async (req, res, next) => {
     } = req.body;
 
     // Required fields check
-    if (!product_id || !warehouse_id || quantity == null) {
+    if (!product_id || !warehouse_id || quantity == null || !varient_id) {
       return res
         .status(201)
         .json(
           returnResponse(
             false,
             true,
-            "Product ID, Warehouse ID and Quantity are required."
+            "Product ID, Warehouse ID,varient_id and Quantity are required."
           )
         );
     }
@@ -111,7 +111,7 @@ exports.createInventory = async (req, res, next) => {
     const query = `
       INSERT INTO sn_product_inventory 
       (
-        product_id,inventory_unique, warehouse_id, value_id, sku, barcode, quantity, 
+        product_id,inventory_unique, warehouse_id, varient_id, sku, barcode, quantity, 
         reserved_quantity, minimum_quantity, batch_number, expiry_date, 
         last_updated, created_at, updated_by
       ) 
@@ -122,7 +122,7 @@ exports.createInventory = async (req, res, next) => {
       product_id,
       Date.now() + randomStrNumeric(5),
       warehouse_id || null,
-      value_id || null,
+      varient_id || null,
       sku || null,
       barcode || null,
       quantity,
@@ -148,14 +148,14 @@ exports.createInventory = async (req, res, next) => {
 // Get All Inventory Entries
 exports.getInventory = async (req, res, next) => {
   try {
-    const { product_id } = req.query;
-    if (!product_id)
+    const { varient_id } = req.query;
+    if (!varient_id)
       return res
         .status(201)
-        .json(returnResponse(true, false, "product_id is required.", []));
-    const query = `SELECT * FROM sn_inventory_details WHERE product_id = ? `;
+        .json(returnResponse(true, false, "varient_id is required.", []));
+    const query = `SELECT * FROM sn_varients_details WHERE varient_id = ? `;
 
-    const result = await queryDb(query, [product_id]);
+    const result = await queryDb(query, [varient_id]);
     return res
       .status(200)
       .json(returnResponse(true, false, "Inventory entries fetched.", result));
@@ -175,6 +175,7 @@ exports.updateInventory = async (req, res, next) => {
       batch_number,
       expiry_date,
       updated_by,
+      barcode,
     } = req.body;
 
     // Required fields check
@@ -241,7 +242,7 @@ exports.updateInventory = async (req, res, next) => {
     const query = `
       UPDATE sn_product_inventory 
       SET quantity = ?, reserved_quantity = ?, minimum_quantity = ?, 
-          batch_number = ?, expiry_date = ?, last_updated = ?, updated_by = ?
+          batch_number = ?, expiry_date = ?, last_updated = ?, updated_by = ?,barcode=?
       WHERE inventory_id = ?
     `;
 
@@ -253,6 +254,7 @@ exports.updateInventory = async (req, res, next) => {
       expiry_date || null,
       last_updated,
       updated_by || "User",
+      barcode || null,
       inventory_id,
     ]);
 
@@ -367,7 +369,7 @@ exports.createCustomerOrder = async (req, res, next) => {
       payment_method, // number
       payment_status = "Unpaid", // Unpaid, Paid, Refunded
       notes = "N/A",
-      items, // [{ product_id,inventory_unique, quantity }]
+      items, // [{ varient_id, quantity }]
       payment, // { method, status, amount }
     } = req.body;
 
@@ -413,17 +415,17 @@ exports.createCustomerOrder = async (req, res, next) => {
     t = await sequelize.transaction();
     for (const item of parsedItems) {
       const pro_unit_price = await queryDb(
-        "SELECT name FROM sn_product WHERE product_id = ? LIMIT 1;",
-        [Number(item.product_id)],
+        "SELECT sku FROM sn_product_variant WHERE variant_id = ? LIMIT 1;",
+        [Number(item.varient_id)],
         t
       );
 
       const inventoryData = await queryDb(
         `SELECT quantity, reserved_quantity 
      FROM sn_product_inventory 
-     WHERE inventory_unique = ? 
+     WHERE varient_id = ? 
      LIMIT 1;`,
-        [Number(item.inventory_unique)],
+        [Number(item.varient_id)],
         t
       );
 
@@ -435,7 +437,7 @@ exports.createCustomerOrder = async (req, res, next) => {
             returnResponse(
               false,
               true,
-              `No inventory record found for product ${pro_unit_price?.[0]?.name}`
+              `No inventory record found for varient ${pro_unit_price?.[0]?.sku}`
             )
           );
       }
@@ -452,7 +454,7 @@ exports.createCustomerOrder = async (req, res, next) => {
             returnResponse(
               false,
               true,
-              `Insufficient stock for product ${pro_unit_price?.[0]?.name}`
+              `Insufficient stock for varient ${pro_unit_price?.[0]?.sku}`
             )
           );
       }
@@ -465,8 +467,8 @@ exports.createCustomerOrder = async (req, res, next) => {
 
     for (const item of parsedItems) {
       const pro_unit_price = await queryDb(
-        "SELECT price AS unit_price FROM sn_product WHERE product_id = ? LIMIT 1;",
-        [Number(item.product_id)],
+        "SELECT price AS unit_price FROM sn_product_variant WHERE variant_id = ? LIMIT 1;",
+        [Number(item.varient_id)],
         t
       );
       const unitPrice = Number(pro_unit_price?.[0]?.unit_price) || 0;
@@ -478,8 +480,8 @@ exports.createCustomerOrder = async (req, res, next) => {
         `SELECT IFNULL(SUM(t.percentage),0) AS total_tax
          FROM sn_product_tax pt
          INNER JOIN sn_tax t ON t.tax_id = pt.tax_id
-         WHERE pt.product_id = ?;`,
-        [Number(item.product_id)],
+         WHERE pt.varient_id = ?;`,
+        [Number(item.varient_id)],
         t
       );
       const taxPercent = Number(taxPercentData?.[0]?.total_tax) || 0;
@@ -493,8 +495,8 @@ exports.createCustomerOrder = async (req, res, next) => {
             IFNULL(SUM(CASE WHEN d.discount_type = 'Flat' THEN VALUE ELSE 0 END), 0) AS flat_dis
          FROM sn_discount d
          INNER JOIN sn_product_discount pd ON pd.discount_id = d.discount_id
-         WHERE pd.product_id = ?;`,
-        [Number(item.product_id)],
+         WHERE pd.varient_id = ?;`,
+        [Number(item.varient_id)],
         t
       );
       const discountPercent = Number(discountData?.[0]?.percent_dis) || 0;
@@ -509,8 +511,8 @@ exports.createCustomerOrder = async (req, res, next) => {
     const orderuniqueid = Date.now() + randomStrNumeric(10);
 
     const storeData = await queryDb(
-      "SELECT store_id FROM sn_product WHERE product_id = ? LIMIT 1;",
-      [Number(parsedItems?.[0]?.product_id)],
+      "SELECT p.store_id FROM sn_product p left join `sn_product_variant` v on v.`product_id` = p.`product_id` WHERE v.`variant_id` = ? LIMIT 1;",
+      [Number(parsedItems?.[0]?.varient_id)],
       t
     );
 
@@ -543,12 +545,12 @@ exports.createCustomerOrder = async (req, res, next) => {
     // Insert each order item
     for (const item of parsedItems) {
       const pro_unit_price = await queryDb(
-        "SELECT price AS unit_price, store_id FROM sn_product WHERE product_id = ? LIMIT 1;",
-        [Number(item.product_id)],
+        "SELECT p.store_id,v.`price` AS unit_price FROM sn_product p LEFT JOIN `sn_product_variant` v ON v.`product_id` = p.`product_id` WHERE v.`variant_id` = ? LIMIT 1;",
+        [Number(item.varient_id)],
         t
       );
 
-      const unitPrice = Number(pro_unit_price?.[0]?.unit_price) || 0;
+      const unitPrice = Number(pro_unit_price?.[0]?.unit_pricee) || 0;
       const price = unitPrice * Number(item.quantity);
 
       // Discount calculation first
@@ -558,8 +560,8 @@ exports.createCustomerOrder = async (req, res, next) => {
             IFNULL(SUM(CASE WHEN d.discount_type = 'Flat' THEN VALUE ELSE 0 END), 0) AS flat_dis
          FROM sn_discount d
          INNER JOIN sn_product_discount pd ON pd.discount_id = d.discount_id
-         WHERE pd.product_id = ?;`,
-        [Number(item.product_id)],
+         WHERE pd.varient_id = ?;`,
+        [Number(item.varient_id)],
         t
       );
 
@@ -574,8 +576,8 @@ exports.createCustomerOrder = async (req, res, next) => {
         `SELECT IFNULL(SUM(t.percentage),0) AS total_tax
          FROM sn_product_tax pt
          INNER JOIN sn_tax t ON t.tax_id = pt.tax_id
-         WHERE pt.product_id = ?;`,
-        [Number(item.product_id)],
+         WHERE pt.varient_id = ?;`,
+        [Number(item.varient_id)],
         t
       );
 
@@ -585,12 +587,12 @@ exports.createCustomerOrder = async (req, res, next) => {
 
       await queryDb(
         `INSERT INTO sn_order_item 
-         (order_id, order_unique_id, product_id, quantity, unit_price, discount, tax_amount, tax_percent,grand_total, store_id, created_at) 
+         (order_id, order_unique_id, variant_id, quantity, unit_price, discount, tax_amount, tax_percent,grand_total, store_id, created_at) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW())`,
         [
           order_id,
           orderuniqueid,
-          item.product_id,
+          item.varient_id,
           item.quantity,
           unitPrice,
           discountAmount,
@@ -605,8 +607,8 @@ exports.createCustomerOrder = async (req, res, next) => {
       await queryDb(
         `UPDATE sn_product_inventory
          SET quantity = quantity - ?, last_updated = NOW(), updated_by = 'User'
-         WHERE inventory_unique = ?;`,
-        [Number(item.quantity), Number(item.inventory_unique)],
+         WHERE varient_id = ?;`,
+        [Number(item.quantity), Number(item.varient_id)],
         t
       );
     }
@@ -630,8 +632,8 @@ exports.createCustomerOrder = async (req, res, next) => {
     // Insert shipping details (enum: 0=Pending, 1=Shipped, 2=Delivered, 3=Cancelled)
     const shippingDetails = await queryDb(
       `INSERT INTO sn_shipping_detail 
-       (order_id, address, city, state, postal_code, country, shipping_status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (order_id, address, city, state, postal_code, country) 
+       VALUES (?, ?, ?, ?, ?, ?)`,
       [
         order_id,
         `${orderInfo?.[0]?.address_line1 || ""} ${
@@ -641,7 +643,6 @@ exports.createCustomerOrder = async (req, res, next) => {
         orderInfo?.[0]?.state || "",
         orderInfo?.[0]?.postal_code || "",
         orderInfo?.[0]?.country || "",
-        1, // 1 = Pending
       ],
       t
     );
@@ -657,7 +658,6 @@ exports.createCustomerOrder = async (req, res, next) => {
       })
     );
   } catch (e) {
-    console.log(e);
     if (t) await t.rollback();
     next(e);
   }
@@ -665,32 +665,89 @@ exports.createCustomerOrder = async (req, res, next) => {
 
 // Get All Orders
 exports.getAllCustomerOrders = async (req, res, next) => {
+  const userId = req?.userId;
+  const roleId = req?.roleId;
   try {
-    const query = `
-      SELECT o.*, c.name AS customer_name, c.email
-      FROM sn_customer_order o
-      JOIN sn_customer c ON o.customer_id = c.customer_id`;
+    const {
+      search = "",
+      start_date = "",
+      end_date = "",
+      page = 1,
+      count = 10,
+    } = req.query;
+    const pageNumber = Math.max(Number(page), 1);
+    const pageSize = Math.max(Number(count), 1);
+    const offset = (pageNumber - 1) * pageSize;
 
-    const result = await queryDb(query);
+    let countQuery = `SELECT COUNT(*) AS cnt FROM sn_order_details WHERE 1 `;
+    let baseQuery = `
+      SELECT * FROM sn_order_details WHERE 1 `;
 
-    return res
-      .status(200)
-      .json(returnResponse(true, false, "Orders fetched.", result));
+    let reP = [];
+    let reB = [];
+
+    if (String(roleId) === "0") {
+      countQuery += " AND customer_id = ?";
+      baseQuery += " AND customer_id = ?";
+      reP.push(Number(userId));
+      reB.push(Number(userId));
+    }
+
+    // Date filter
+    if (start_date && end_date) {
+      const start = moment(start_date).format("YYYY-MM-DD");
+      const end = moment(end_date).format("YYYY-MM-DD");
+      countQuery += " AND DATE(created_at) BETWEEN ? AND ?";
+      baseQuery += " AND DATE(created_at) BETWEEN ? AND ?";
+      reP.push(start, end);
+      reB.push(start, end);
+    }
+
+    // Search filter
+    if (search) {
+      const s = `%${search}%`;
+      const searchCondition = `
+        AND (
+          order_unique LIKE ? OR 
+          notes LIKE ? OR 
+          status LIKE ?
+        )`;
+      countQuery += searchCondition;
+      baseQuery += searchCondition;
+      reP.push(s, s, s);
+      reB.push(s, s, s);
+    }
+
+    baseQuery += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    reB.push(pageSize, offset);
+
+    const totalRowsResult = await queryDb(countQuery, reP);
+    const totalRows = Number(totalRowsResult?.[0]?.cnt) || 0;
+    const result = await queryDb(baseQuery, reB);
+
+    return res.status(200).json(
+      returnResponse(false, true, "Order fetched.", {
+        data: result,
+        totalPage: Math.ceil(totalRows / pageSize),
+        currPage: pageNumber,
+      })
+    );
   } catch (e) {
     next(e);
   }
 };
 
 // Get Order by ID
-exports.getCustomerOrderById = async (req, res, next) => {
+exports.getCustomerOrderByOrderId = async (req, res, next) => {
   try {
-    const { order_id } = req.body;
-
+    const { order_id } = req.query;
+    if (!order_id) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "order_id is required."));
+    }
     const query = `
-      SELECT o.*, c.name AS customer_name, c.email
-      FROM sn_customer_order o
-      JOIN sn_customer c ON o.customer_id = c.customer_id
-      WHERE o.order_id = ?`;
+      SELECT * FROM sn_order_details WHERE order_unique = ? LIMIT 1;`;
 
     const result = await queryDb(query, [order_id]);
 
@@ -711,20 +768,83 @@ exports.getCustomerOrderById = async (req, res, next) => {
 // Update Order
 exports.updateCustomerOrder = async (req, res, next) => {
   try {
-    const { order_id, status, total_amount } = req.body;
-
-    if (!order_id) {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "update_order_status"
+    );
+    if (!hasPermission) {
       return res
         .status(201)
-        .json(returnResponse(false, true, "Order ID is required."));
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+
+    const { order_id, status } = req.body;
+    // Pendding, Shipped, In Transit, Delivered, Cancelled
+
+    if (!order_id || !status) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Order ID And status is required."));
+    }
+    const orderDetails = await queryDb(
+      "SELECT * FROM sn_customer_order WHERE order_unique = ? LIMIT 1;",
+      [order_id]
+    );
+    if (orderDetails.length === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Order not found."));
+    }
+    const data = orderDetails?.[0];
+    if (data?.status === "Delivered") {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Sorry You can't update the order status as it is already delivered."
+          )
+        );
+    }
+    if (
+      data?.status === "In Transit" &&
+      ["Pending", "Shipped"]?.includes(status)
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Sorry You can't update the order status as it is already In Transit."
+          )
+        );
+    }
+    if (data?.status === "Shipped" && ["Pending"]?.includes(status)) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Sorry You can't update the order status as it is already Shipped."
+          )
+        );
     }
 
     const query = `
       UPDATE sn_customer_order 
-      SET status = ?, total_amount = ?
+      SET status = ?
       WHERE order_id = ?`;
 
-    await queryDb(query, [status, total_amount, order_id]);
+    await queryDb(query, [status, data?.order_id]);
 
     return res
       .status(200)
@@ -749,6 +869,62 @@ exports.deleteCustomerOrder = async (req, res, next) => {
     next(e);
   }
 };
+// Cancel request
+exports.cancelOrder = async (req, res, next) => {
+  let t;
+  const userId = req.userId;
+  try {
+    const { order_id, reason, notes } = req.body;
+
+    if (!order_id || !reason || !notes)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Please fill all the fields"));
+    const orderDetails = await queryDb(
+      "SELECT * FROM sn_customer_order WHERE order_unique = ? AND customer_id = ? LIMIT 1;",
+      [order_id, userId],
+      t
+    );
+    if (orderDetails.length === 0) {
+      await t.rollback();
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Order not found."));
+    }
+    const data = orderDetails?.[0];
+
+    if (
+      ["Shipped", "In Transit", "Delivered", "Cancelled"]?.includes(
+        data?.status
+      )
+    )
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Order status cannot be changed."));
+    t = await sequelize.transaction();
+
+    await queryDb(
+      "UPDATE `sn_customer_order` SET `status` = 5 WHERE `order_id` = ? LIMIT 1;",
+      [data?.order_id],
+      t
+    );
+    const query =
+      "INSERT INTO `sn_cancel_request`(`order_id`,`customer_id`,`reason`,`status`,`requested_at`,`notes`) VALUES(?,?,?,?,NOW(),?);";
+    await queryDb(
+      query,
+      [data?.order_id, userId, reason || "", 2, notes || ""],
+      t
+    );
+    await t.commit();
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Order Cancelled successfully."));
+  } catch (e) {
+    if (t) await t.rollback();
+    next(e);
+  }
+};
+
 // Create Order Item
 exports.createOrderItem = async (req, res, next) => {
   try {
@@ -1475,24 +1651,24 @@ exports.createProductDiscount = async (req, res, next) => {
           )
         );
     }
-    const { product_id, discount_id } = req.body;
-    if (!product_id || !discount_id || isNaN(discount_id)) {
+    const { product_id, discount_id, varient_id } = req.body;
+    if (!varient_id || !product_id || !discount_id || isNaN(discount_id)) {
       return res
         .status(201)
         .json(
           returnResponse(
             false,
             true,
-            "Invalid or missing discount ID or Product ID."
+            "Invalid or missing discount ID or Product ID. or varient_id"
           )
         );
     }
     const query = `
-      INSERT INTO sn_product_discount (product_id, discount_id)
-      VALUES (?, ?)
+      INSERT INTO sn_product_discount (product_id, discount_id,varient_id)
+      VALUES (?, ?,?)
     `;
 
-    await queryDb(query, [product_id, discount_id]);
+    await queryDb(query, [product_id, discount_id, varient_id]);
 
     return res
       .status(200)
@@ -1557,8 +1733,8 @@ exports.updateProductDiscount = async (req, res, next) => {
           )
         );
     }
-    const { id, product_id, discount_id } = req.body;
-    if (!id || !product_id || !discount_id || isNaN(discount_id)) {
+    const { id, varient_id, discount_id } = req.body;
+    if (!id || !varient_id || !discount_id || isNaN(discount_id)) {
       return res
         .status(201)
         .json(
@@ -1571,11 +1747,11 @@ exports.updateProductDiscount = async (req, res, next) => {
     }
     const query = `
       UPDATE sn_product_discount
-      SET product_id = ?, discount_id = ?
+      SET varient_id = ?, discount_id = ?
       WHERE id = ?
     `;
 
-    await queryDb(query, [product_id, discount_id, id]);
+    await queryDb(query, [varient_id, discount_id, id]);
 
     return res
       .status(200)
@@ -1829,24 +2005,24 @@ exports.createProductTax = async (req, res, next) => {
           )
         );
     }
-    const { product_id, tax_id } = req.body;
-    if (!product_id || !tax_id) {
+    const { product_id, tax_id, variant_id } = req.body;
+    if (!product_id || !tax_id || !variant_id) {
       return res
         .status(201)
         .json(
           returnResponse(
             false,
             true,
-            "Tax Id And Product Id is required and must be a valid string."
+            "Tax Id And Product Id ,variant_id is required and must be a valid string."
           )
         );
     }
     const query = `
-      INSERT INTO sn_product_tax (product_id, tax_id)
-      VALUES (?, ?)
+      INSERT INTO sn_product_tax (product_id, tax_id,varient_id)
+      VALUES (?, ?,?)
     `;
 
-    await queryDb(query, [product_id, tax_id]);
+    await queryDb(query, [product_id, tax_id, variant_id]);
 
     return res
       .status(200)
@@ -1901,8 +2077,8 @@ exports.updateProductTax = async (req, res, next) => {
           )
         );
     }
-    const { product_id, tax_id, id } = req.body;
-    if (!product_id || !tax_id || !id) {
+    const { varient_id, tax_id, id } = req.body;
+    if (!varient_id || !tax_id || !id) {
       return res
         .status(201)
         .json(
@@ -1915,11 +2091,11 @@ exports.updateProductTax = async (req, res, next) => {
     }
     const query = `
       UPDATE sn_product_tax
-      SET product_id = ?, tax_id = ?
+      SET varient_id = ?, tax_id = ?
       WHERE id = ?
     `;
 
-    await queryDb(query, [product_id, tax_id, id]);
+    await queryDb(query, [varient_id, tax_id, id]);
 
     return res
       .status(200)
@@ -2057,15 +2233,28 @@ exports.deleteProductReview = async (req, res, next) => {
 // sn_wishlist_item.controller.js
 
 exports.createWishlistItem = async (req, res, next) => {
+  const userId = req.userId;
   try {
-    const { wishlist_id, product_id } = req.body;
+    const { product_id } = req.query;
+    if (!product_id)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Product ID is required."));
+    const isAlreadyExist = await queryDb(
+      "SELECT 1 FROM sn_wishlist_item WHERE customer_id = ? AND product_id = ?",
+      [userId, product_id]
+    );
+    if (isAlreadyExist?.length > 0) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "Product is already in yourwish list")
+        );
+    }
+    const query =
+      "INSERT INTO `sn_wishlist_item`(`customer_id`,`product_id`) VALUES(?,?);";
 
-    const query = `
-      INSERT INTO sn_wishlist_item (wishlist_id, product_id)
-      VALUES (?, ?)
-    `;
-
-    await queryDb(query, [wishlist_id, product_id]);
+    await queryDb(query, [userId, product_id]);
 
     return res
       .status(200)
@@ -2076,64 +2265,43 @@ exports.createWishlistItem = async (req, res, next) => {
 };
 
 exports.getAllWishlistItems = async (req, res, next) => {
+  const userId = req.userId;
   try {
-    const query = `SELECT * FROM sn_wishlist_item`;
-    const result = await queryDb(query);
+    const query = `SELECT * FROM sn_wishlist_item_details WHERE customer_id =?`;
+    const result = await queryDb(query, [userId]);
 
-    return res.status(200).json(returnResponse(true, false, result));
+    return res
+      .status(200)
+      .json(
+        returnResponse(true, false, "Wishlist fetch successfully!", result)
+      );
   } catch (e) {
     next(e);
   }
 };
 
-exports.getWishlistItemById = async (req, res, next) => {
+exports.removeFromWishlistItem = async (req, res, next) => {
+  const userId = req.userId;
   try {
-    const { wishlist_item_id } = req.params;
-
-    const query = `SELECT * FROM sn_wishlist_item WHERE wishlist_item_id = ?`;
-    const result = await queryDb(query, [wishlist_item_id]);
-
-    return res.status(200).json(returnResponse(true, false, result));
-  } catch (e) {
-    next(e);
-  }
-};
-
-exports.updateWishlistItem = async (req, res, next) => {
-  try {
-    const { wishlist_item_id } = req.params;
-    const { wishlist_id, product_id } = req.body;
-
+    const { wishlist_item_id } = req.query;
+    if (!wishlist_item_id)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Invalid wishlist item id"));
     const query = `
-      UPDATE sn_wishlist_item
-      SET wishlist_id = ?, product_id = ?
-      WHERE wishlist_item_id = ?
+      DELETE FROM sn_wishlist_item WHERE wishlist_item_id = ? AND customer_id = ? LIMIT 1;
     `;
 
-    await queryDb(query, [wishlist_id, product_id, wishlist_item_id]);
+    await queryDb(query, [wishlist_item_id, userId]);
 
     return res
       .status(200)
-      .json(returnResponse(true, false, "Wishlist item updated successfully."));
+      .json(returnResponse(true, false, "Wishlist item removed successfully."));
   } catch (e) {
     next(e);
   }
 };
 
-exports.deleteWishlistItem = async (req, res, next) => {
-  try {
-    const { wishlist_item_id } = req.body;
-
-    const query = `DELETE FROM sn_wishlist_item WHERE wishlist_item_id = ?`;
-    await queryDb(query, [wishlist_item_id]);
-
-    return res
-      .status(200)
-      .json(returnResponse(true, false, "Wishlist item deleted successfully."));
-  } catch (e) {
-    next(e);
-  }
-};
 // sn_cart.controller.js
 
 exports.createCart = async (req, res, next) => {

@@ -169,7 +169,7 @@ exports.loginCustomer = async (req, res, next) => {
     }
     // Generate token
     const token = jwt.sign(
-      { userId: user.cl_reg_id, userEmail: user.cl_email },
+      { userId: user.cl_reg_id, role_id: 0, userEmail: user.cl_email },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );

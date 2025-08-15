@@ -52,6 +52,15 @@ const {
   deleteProductAttribute,
   deleteProductAttributeValue,
   createUser,
+  createSubcategory,
+  getSubcategories,
+  getSubcategoryById,
+  updateSubcategory,
+  deleteSubcategory,
+  createVariantWithAttributes,
+  updateVariant,
+  deleteVariant,
+  getVariant,
 } = require("../controllers/index1");
 const { encdec } = require("../utils/encdec");
 const {
@@ -77,6 +86,13 @@ const {
   deleteProductTax,
   createPaymentMethod,
   getPaymentMethod,
+  getAllCustomerOrders,
+  getCustomerOrderByOrderId,
+  updateCustomerOrder,
+  cancelOrder,
+  createWishlistItem,
+  getAllWishlistItems,
+  removeFromWishlistItem,
 } = require("../controllers/index2");
 const {
   createCustomer,
@@ -133,18 +149,34 @@ router.get(
 router.post("/update-product-category", userAuthCheck, updateProductCategory);
 router.get("/delete-product-category", userAuthCheck, deleteProductCategory);
 
+// subcategory related api's =====================================================================
+router.post("/create-product-subcategory", userAuthCheck, createSubcategory);
+router.get("/get-product-subcategory", userAuthCheck, getSubcategories);
+router.get("/get-product-subcategory-by-id", userAuthCheck, getSubcategoryById);
+router.post("/update-product-subcategory", userAuthCheck, updateSubcategory);
+router.get("/delete-product-subcategory", userAuthCheck, deleteSubcategory);
+
 // product related api's =====================================================================
 router.post("/create-product", userAuthCheck, createProduct);
 router.get("/get-all-products", userAuthCheck, getAllProducts);
 router.get("/get-product-by-id", userAuthCheck, getProductById);
 router.post("/update-product", userAuthCheck, updateProduct);
 router.get("/delete-product", userAuthCheck, deleteProduct);
+
 // product image related api's ============================================================
 router.post("/upload-product-image", userAuthCheck, createProductImage);
 router.get("/get-product-image", userAuthCheck, getProductImages);
 router.post("/update-product-image", userAuthCheck, updateProductImage);
 router.get("/delete-product-image", userAuthCheck, deleteProductImage);
-// unis related api's
+
+// varients related api's ============================================================================
+router.post("/create-product-varients-with-attributes", userAuthCheck, createVariantWithAttributes);
+router.post("/update-product-varients", userAuthCheck, updateVariant);
+router.get("/delete-product-varients", userAuthCheck, deleteVariant);
+router.get("/get-product-varients", userAuthCheck, getVariant);
+
+
+// unis related api's ============================================================================
 router.post("/create-units", userAuthCheck, createUnit);
 router.get("/get-all-units", userAuthCheck, getAllUnits);
 router.post("/update-units", userAuthCheck, updateUnit);
@@ -219,9 +251,29 @@ router.get("/get-customer-profile", customerAuthCheck, getCustomersProfile);
 router.post("/update-customer-profile", customerAuthCheck, updateCustomer);
 // add shipping address
 router.post("/add-shipping-address", customerAuthCheck, createShippingAddress);
-router.get("/set-shipping-address-as-default", customerAuthCheck, setShippingAddressAsDefault);
+router.get(
+  "/set-shipping-address-as-default",
+  customerAuthCheck,
+  setShippingAddressAsDefault
+);
 router.get("/get-shipping-address", customerAuthCheck, getShippingAddress);
 // order related api's
 router.post("/create-order", customerAuthCheck, createCustomerOrder);
+router.get("/get-order-details", customerAuthCheck, getAllCustomerOrders);
+router.get(
+  "/get-order-details-by-order-id",
+  generalAuthCheck,
+  getCustomerOrderByOrderId
+);
+router.post("/update-order-status", userAuthCheck, updateCustomerOrder);
+router.post("/cancel-order-status", customerAuthCheck, cancelOrder);
+// wish list related api's
+router.get("/create-wish-list-items", customerAuthCheck, createWishlistItem);
+router.get("/get-wish-list-items", customerAuthCheck, getAllWishlistItems);
+router.get(
+  "/remove-wish-list-items",
+  customerAuthCheck,
+  removeFromWishlistItem
+);
 
 module.exports = router;

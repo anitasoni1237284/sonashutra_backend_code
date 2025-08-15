@@ -7,7 +7,7 @@ const cors = require("cors");
 const path = require("path");
 const routes = require("./routes/router");
 const fileUpload = require("express-fileupload");
-const { enCryptData } = require("./helper/utilityHelper");
+const { enCryptData, deCryptData } = require("./helper/utilityHelper");
 const errorHandler = require("./utils/errorHandler");
 const corsOptions = {
   origin: "*",
@@ -38,13 +38,7 @@ app.get("/", async (req, res) => {
 // name()
 
 // console.log(
-//   enCryptData({
-//     username: "anand",
-//     password: "123",
-//     email: "vermaanand278@gmail.com",
-//     roleId: 8,
-//     store_id: 1,
-//   })
+//   deCryptData("iYtthz51EE3DSyalzNiz+zdia0pvNUlhV1UvWndmVFFXU1RQMnc9PQ==")
 // );
 // {
 //   "status": "Pending",

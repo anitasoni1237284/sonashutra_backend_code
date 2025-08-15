@@ -1,4 +1,5 @@
 const uploadToCloudinary = require("../config/cloudinay");
+const sequelize = require("../config/seq.config");
 const { returnResponse } = require("../helper/helperResponse");
 const { queryDb } = require("../helper/utilityHelper");
 const { checkPermission } = require("../middleware");
@@ -270,7 +271,7 @@ exports.createUser = async (req, res, next) => {
     }
 
     // Hash the password
-    const saltRounds = 10
+    const saltRounds = 10;
     // Number(process.env.SALT_ROUND);
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
@@ -295,7 +296,7 @@ exports.createUser = async (req, res, next) => {
       .status(200)
       .json(returnResponse(true, false, "User created successfully."));
   } catch (e) {
-    console.log(e)
+    console.log(e);
     next(e);
   }
 };
@@ -543,9 +544,8 @@ exports.createProductCategory = async (req, res, next) => {
     }
 
     const query =
-      "INSERT INTO sn_product_category (name, description, cat_image) VALUES (?, ?, ?)";
-    await queryDb(query, [name, description, imageUrl]);
-    console.log(imageUrl);
+      "INSERT INTO sn_product_category (name, description, cat_image,store_id) VALUES (?, ?, ?,?)";
+    await queryDb(query, [name, description, imageUrl, req.storeId]);
     return res
       .status(200)
       .json(returnResponse(true, false, "Category created successfully."));
@@ -557,9 +557,10 @@ exports.createProductCategory = async (req, res, next) => {
 
 // Get All Product Categories
 exports.getAllProductCategories = async (req, res, next) => {
+  const storeId = req.storeId;
   try {
-    const query = "SELECT * FROM sn_product_category";
-    const result = await queryDb(query);
+    const query = "SELECT * FROM sn_product_category WHERE store_id = ?;";
+    const result = await queryDb(query, [storeId]);
     return res
       .status(200)
       .json(returnResponse(true, false, "Categories fetched.", result));
@@ -694,6 +695,263 @@ exports.deleteProductCategory = async (req, res, next) => {
     next(e);
   }
 };
+// ✅ Create Subcategory
+exports.createSubcategory = async (req, res, next) => {
+  try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "create_subcategory"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+
+    const { product_category_id, name, description } = req.body;
+    const subcat_image = req?.files?.file || "";
+
+    if (!product_category_id || !name) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "Category ID and Name are required.")
+        );
+    }
+
+    const created_at = new Date();
+    const updated_at = new Date();
+
+    const checkQuery =
+      "SELECT 1 FROM `sn_product_subcategory` WHERE `name` = ? AND `product_category_id` = ? LIMIT 1;";
+    const existing = await queryDb(checkQuery, [name, product_category_id]);
+    if (existing?.length > 0) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "Subcategory already exists in this category."
+          )
+        );
+    }
+    let imageUrl = null;
+
+    if (subcat_image) {
+      imageUrl = await uploadToCloudinary(
+        subcat_image.data,
+        "product_sub_categories"
+      );
+    }
+
+    const insertQuery = `
+      INSERT INTO sn_product_subcategory 
+      (product_category_id, name, description, subcat_image, created_at, updated_at) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `;
+    await queryDb(insertQuery, [
+      product_category_id,
+      name,
+      description || null,
+      imageUrl || null,
+      created_at,
+      updated_at,
+    ]);
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Subcategory created successfully."));
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ✅ Get All Subcategories
+exports.getSubcategories = async (req, res, next) => {
+  try {
+    const { product_category_id } = req.query;
+    if (!product_category_id)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "product_category_id is required!"));
+
+    const subcategories = await queryDb(
+      "SELECT * FROM sn_product_subcategory_details WHERE product_category_id = ? ",
+      [product_category_id]
+    );
+    return res
+      .status(200)
+      .json(
+        returnResponse(
+          true,
+          false,
+          "Subcategories fetched successfully.",
+          subcategories
+        )
+      );
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ✅ Get Single Subcategory
+exports.getSubcategoryById = async (req, res, next) => {
+  try {
+    const { product_subcategory_id } = req.query;
+    if (!product_subcategory_id)
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "product_subcategory_id is required!")
+        );
+
+    const subcategory = await queryDb(
+      "SELECT * FROM sn_product_subcategory_details WHERE product_subcategory_id = ?",
+      [product_subcategory_id]
+    );
+    if (!subcategory?.length) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Subcategory not found."));
+    }
+    return res
+      .status(200)
+      .json(
+        returnResponse(
+          true,
+          false,
+          "Subcategory fetched successfully.",
+          subcategory[0]
+        )
+      );
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ✅ Update Subcategory
+exports.updateSubcategory = async (req, res, next) => {
+  try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "update_subcategory"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+
+    const { product_subcategory_id, product_category_id, name, description } =
+      req.body;
+    const subcat_image = req?.files?.file || "";
+    if (
+      !product_subcategory_id ||
+      !name ||
+      !description ||
+      !product_category_id
+    ) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Please fill all fields."));
+    }
+    const updated_at = new Date();
+
+    let imageUrl = null;
+
+    if (subcat_image) {
+      imageUrl = await uploadToCloudinary(
+        subcat_image.data,
+        "product_sub_categories"
+      );
+    }
+
+    const updateQuery = `
+      UPDATE sn_product_subcategory 
+      SET product_category_id = ?, name = ?, description = ?, subcat_image = ?, updated_at = ? 
+      WHERE product_subcategory_id = ?
+    `;
+    const result = await queryDb(updateQuery, [
+      product_category_id,
+      name,
+      description || null,
+      imageUrl || null,
+      updated_at,
+      product_subcategory_id,
+    ]);
+
+    if (result?.affectedRows === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Subcategory not found."));
+    }
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Subcategory updated successfully."));
+  } catch (e) {
+    next(e);
+  }
+};
+
+// ✅ Delete Subcategory
+exports.deleteSubcategory = async (req, res, next) => {
+  try {
+    const hasPermission = await checkPermission(
+      req.userId,
+      "delete_subcategory"
+    );
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission to this action."
+          )
+        );
+    }
+
+    const { product_subcategory_id } = req.query;
+    if (!product_subcategory_id) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "product_subcategory_id is required!.")
+        );
+    }
+    const deleteQuery =
+      "DELETE FROM sn_product_subcategory WHERE product_subcategory_id = ?";
+    const result = await queryDb(deleteQuery, [product_subcategory_id]);
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Subcategory not found."));
+    }
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Subcategory deleted successfully."));
+  } catch (e) {
+    next(e);
+  }
+};
+
 // Create Product
 exports.createProduct = async (req, res, next) => {
   const store = req.storeId;
@@ -711,7 +969,13 @@ exports.createProduct = async (req, res, next) => {
         );
     }
 
-    const { name, description, price, product_category_id } = req.body;
+    const {
+      name,
+      description,
+      price,
+      product_category_id,
+      product_subcategory_id,
+    } = req.body;
     const files = req?.files?.file; // can be single or multiple
     if (!name || !price) {
       return res
@@ -731,14 +995,15 @@ exports.createProduct = async (req, res, next) => {
     // Step 1: Insert product
     const insertQuery = `
       INSERT INTO sn_product 
-      (name, description, price, product_category_id, created_at, updated_at, store_id) 
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      (name, description, price, product_category_id,product_sub_cat_id, created_at, updated_at, store_id) 
+      VALUES (?, ?, ?, ?, ?, ?, ?,?)
     `;
     const result = await queryDb(insertQuery, [
       name,
       description || null,
       price,
       product_category_id || null,
+      product_subcategory_id || null,
       created_at,
       updated_at,
       store,
@@ -774,6 +1039,7 @@ exports.getAllProducts = async (req, res, next) => {
   try {
     const {
       category_id = null,
+      subcategory_id = null,
       search = "",
       start_date = "",
       end_date = "",
@@ -797,6 +1063,12 @@ exports.getAllProducts = async (req, res, next) => {
       reP.push(Number(category_id));
       reB.push(Number(category_id));
     }
+    if (subcategory_id) {
+      countQuery += " AND product_sub_cat_id = ?";
+      baseQuery += " AND product_sub_cat_id = ?";
+      reP.push(Number(subcategory_id));
+      reB.push(Number(subcategory_id));
+    }
 
     // Date filter
     if (start_date && end_date) {
@@ -815,12 +1087,13 @@ exports.getAllProducts = async (req, res, next) => {
         AND (
           name LIKE ? OR 
           description LIKE ? OR 
-          price LIKE ?
+          price LIKE ? OR 
+          product_tags ?
         )`;
       countQuery += searchCondition;
       baseQuery += searchCondition;
-      reP.push(s, s, s);
-      reB.push(s, s, s);
+      reP.push(s, s, s, s);
+      reB.push(s, s, s, s);
     }
 
     baseQuery += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
@@ -831,16 +1104,11 @@ exports.getAllProducts = async (req, res, next) => {
     const result = await queryDb(baseQuery, reB);
 
     return res.status(200).json(
-      returnResponse(
-        false,
-        true,
-        {
-          data: result,
-          totalPage: Math.ceil(totalRows / pageSize),
-          currPage: pageNumber,
-        },
-        "Products fetched."
-      )
+      returnResponse(false, true, "Products fetched.", {
+        data: result,
+        totalPage: Math.ceil(totalRows / pageSize),
+        currPage: pageNumber,
+      })
     );
   } catch (e) {
     next(e);
@@ -886,16 +1154,28 @@ exports.updateProduct = async (req, res, next) => {
           )
         );
     }
-    const { product_id, name, description, price, product_category_id } =
-      req.body;
-    if (!name || !price || !product_category_id || !product_id) {
+    const {
+      product_id,
+      name,
+      description,
+      price,
+      product_category_id,
+      product_tags,
+    } = req.body;
+    if (
+      !name ||
+      !price ||
+      !product_category_id ||
+      !product_id ||
+      !product_tags
+    ) {
       return res
         .status(201)
         .json(
           returnResponse(
             false,
             true,
-            "product_category_id, price and category are required."
+            "product_category_id, price,product_tags and category are required."
           )
         );
     }
@@ -903,7 +1183,7 @@ exports.updateProduct = async (req, res, next) => {
 
     const query = `
       UPDATE sn_product 
-      SET name = ?, description = ?, price = ?, product_category_id = ?, updated_at = ? 
+      SET name = ?, description = ?, price = ?, product_category_id = ?, updated_at = ?,product_tags = ? 
       WHERE product_id = ?`;
 
     await queryDb(query, [
@@ -912,6 +1192,7 @@ exports.updateProduct = async (req, res, next) => {
       price,
       product_category_id || null,
       updated_at,
+      product_tags,
       product_id,
     ]);
 
@@ -1095,6 +1376,220 @@ exports.deleteProductImage = async (req, res, next) => {
     next(e);
   }
 };
+// varients related api's
+exports.createVariantWithAttributes = async (req, res, next) => {
+  let t;
+  try {
+    t = await sequelize.transaction();
+    const hasPermission = await checkPermission(req.userId, "create_variant");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission for this action."
+          )
+        );
+    }
+
+    const {
+      product_id,
+      sku,
+      price,
+      weight = 0,
+      dimensions = null,
+      attributes,
+    } = req.body;
+
+    // attributes: stringified JSON array
+    // Example: '[{"attribute_id":1,"value":"10GB"},{"attribute_id":2,"value":"Blue"}]'
+    let attrArray = attributes;
+    // try {
+    //   attrArray = JSON.parse(attributes);
+    // } catch (e) {
+    //   return res
+    //     .status(201)
+    //     .json(returnResponse(false, true, "Invalid attributes JSON format."));
+    // }
+
+    if (
+      !product_id ||
+      !price ||
+      !Array.isArray(attrArray) ||
+      attrArray.length === 0
+    ) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "product_id, price and attributes are required."
+          )
+        );
+    }
+
+    const created_at = new Date();
+    t = await sequelize.transaction();
+
+    // Step 1: Insert into sn_product_variant
+    const variantInsertQuery =
+      "INSERT INTO `sn_product_variant`(`product_id`,`sku`,`price`,`weight`,`dimensions`) VALUES(?,?,?,?,?);";
+    const variantResult = await queryDb(
+      variantInsertQuery,
+      [product_id, sku || null, price, weight || 0, dimensions || null],
+      t
+    );
+
+    const variant_id = variantResult; // Assuming queryDb returns insertId
+
+    // Step 2: Insert attributes for this variant
+    for (const attr of attrArray) {
+      if (!attr.attribute_id || !attr.value) continue;
+      // value_id  product_id  varient_id  attribute_id  value
+      const attrInsertQuery = `
+        INSERT INTO sn_product_attribute_value
+        (varient_id,product_id, attribute_id, value, created_at)
+        VALUES (?,?, ?, ?, ?)
+      `;
+      await queryDb(
+        attrInsertQuery,
+        [variant_id, product_id, attr.attribute_id, attr.value, created_at],
+        t
+      );
+    }
+    await t.commit();
+    return res
+      .status(200)
+      .json(
+        returnResponse(
+          true,
+          false,
+          "Variant with attributes created successfully."
+        )
+      );
+  } catch (err) {
+    if (t) await t.rollback();
+    next(err);
+  }
+};
+// UPDATE variant
+exports.updateVariant = async (req, res, next) => {
+  try {
+    const hasPermission = await checkPermission(req.userId, "update_variant");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission for this action."
+          )
+        );
+    }
+
+    const { variant_id, sku, price, weight, dimensions, status } = req.body;
+    if (!variant_id || !sku || !price)
+      return res
+        .status(201)
+        .json(
+          returnResponse(false, true, "variant_id, sku, price, are required.")
+        );
+    const updated_at = new Date();
+
+    const updateQuery = `
+      UPDATE sn_product_variant 
+      SET sku = ?, price = ?, weight = ?, dimensions = ?, status = ?, updated_at = ?
+      WHERE variant_id = ?
+    `;
+    const result = await queryDb(updateQuery, [
+      sku || null,
+      price || null,
+      weight || null,
+      dimensions || null,
+      status || "Active",
+      updated_at,
+      variant_id,
+    ]);
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Variant not found."));
+    }
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Variant updated successfully."));
+  } catch (err) {
+    next(err);
+  }
+};
+// Delete variant
+exports.deleteVariant = async (req, res, next) => {
+  try {
+    const hasPermission = await checkPermission(req.userId, "delete_variant");
+    if (!hasPermission) {
+      return res
+        .status(201)
+        .json(
+          returnResponse(
+            false,
+            true,
+            "You do not have permission for this action."
+          )
+        );
+    }
+
+    const { variant_id } = req.query;
+    if (!variant_id)
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "variant_id is required."));
+    const updateQuery =
+      "DELETE FROM `sn_product_variant` WHERE `variant_id` = ? LIMIT 1;";
+    const result = await queryDb(updateQuery, [variant_id]);
+
+    if (result.affectedRows === 0) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "Variant not found."));
+    }
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Variant Deleted successfully."));
+  } catch (err) {
+    next(err);
+  }
+};
+exports.getVariant = async (req, res, next) => {
+  try {
+    const { variant_id, product_id } = req.query;
+
+    let updateQuery = "SELECT * FROM `sn_varients_details` WHERE 1 = 1 ";
+    let re = [];
+    if (variant_id) {
+      updateQuery += ` AND varient_id = ? `;
+      re.push(variant_id);
+    }
+    if (product_id) {
+      updateQuery += ` AND product_id = ? `;
+      re.push(product_id);
+    }
+    const result = await queryDb(updateQuery, re);
+
+    return res
+      .status(200)
+      .json(returnResponse(true, false, "Variant get successfully.", result));
+  } catch (err) {
+    next(err);
+  }
+};
+
 // units related api's
 exports.createUnit = async (req, res, next) => {
   try {
@@ -1328,7 +1823,6 @@ exports.updateProductAttribute = async (req, res, next) => {
         );
     }
     const { attribute_id, name, unit_id } = req.body;
-    console.log(req.body);
     if (!attribute_id || !name) {
       return res
         .status(201)
@@ -1409,34 +1903,29 @@ exports.createProductAttributeValue = async (req, res, next) => {
           )
         );
     }
-    const { product_id, attribute_id, value } = req.body; // vlaue ->> ex: Size: Value=> XL,MD...,
-    if (!product_id || !attribute_id) {
+    const { product_id, variant_id, attribute_id, value } = req.body; // vlaue ->> ex: Size: Value=> XL,MD...,
+    if (!product_id || !attribute_id || !variant_id) {
       return res
         .status(201)
         .json(
           returnResponse(
             false,
             true,
-            "product_id and attribute_id are required."
+            "product_id and attribute_id,variant_id are required."
           )
         );
     }
-    const q =
-      "SELECT 1 FROM `sn_product_attribute_value` WHERE `product_id` = ? AND attribute_id = ? AND value = ?  LIMIT 1;";
-    const result = await queryDb(q, [product_id, attribute_id, value]);
-    if (result?.length > 0)
-      return res
-        .status(201)
-        .json(
-          returnResponse(false, true, "Attribute AND Value already exists!")
-        );
-
-    const query = `
-      INSERT INTO sn_product_attribute_value (product_id, attribute_id, value)
-      VALUES (?, ?, ?)
-    `;
-
-    await queryDb(query, [product_id, attribute_id, value || null]);
+    const attrInsertQuery = `
+        INSERT INTO sn_product_attribute_value
+        (varient_id,product_id, attribute_id, value, created_at)
+        VALUES (?,?, ?, ?, NOW())
+      `;
+    await queryDb(attrInsertQuery, [
+      variant_id,
+      product_id,
+      attribute_id,
+      value,
+    ]);
 
     return res
       .status(200)
@@ -1454,11 +1943,16 @@ exports.createProductAttributeValue = async (req, res, next) => {
 
 exports.getProductAttributeValues = async (req, res, next) => {
   try {
-    const { product_id, category_id } = req.query;
+    const { product_id, category_id, varient_id } = req.query;
 
     let query = `SELECT * FROM sn_product_attributes WHERE 1=1 `;
     const params = [];
 
+    if (!varient_id) {
+      return res
+        .status(201)
+        .json(returnResponse(false, true, "varient_id is required."));
+    }
     if (product_id) {
       query += ` AND product_id = ?`;
       params.push(product_id);
@@ -1466,6 +1960,10 @@ exports.getProductAttributeValues = async (req, res, next) => {
     if (category_id) {
       query += ` AND category_id = ?`;
       params.push(category_id);
+    }
+    if (varient_id) {
+      query += ` AND varient_id = ?`;
+      params.push(varient_id);
     }
 
     const result = await queryDb(query, params);

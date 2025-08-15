@@ -78,6 +78,7 @@ exports.customerAuthCheck = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = decoded.userId; // Attach the user ID to the request object
+    req.roleId = String(decoded.role_id) || String(1000000000000000);
     next();
   } catch (err) {
     return res.status(401).json({
